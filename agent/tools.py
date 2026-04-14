@@ -191,7 +191,7 @@ async def click_element(
     async def perform_click():
         locator = page.get_by_role(role, name=name).first
         await locator.click()
-        return f"Clic effectué avec succès sur {role} '{name}'"
+        return f"✅ Clic effectué avec succès sur {role} '{name}'"
 
     try:
         async with page.expect_navigation(wait_until="load", timeout=10000):
@@ -274,7 +274,7 @@ async def fill_text_field(
     new_snapshot = await get_aria_snapshot(page)
     return Command(update={
         "messages": [ToolMessage(
-            content=f"{response}\nNouvelle page au format Markdown :\n{new_snapshot}",
+            content=f"{response}\nPage au format Markdown :\n{new_snapshot}",
             tool_call_id=tool_call_id,
         )]
     })
