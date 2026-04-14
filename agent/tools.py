@@ -37,9 +37,36 @@ async def click_element(
     name: str,
 ) -> Command:
     """
-    Clicks an element based on its ARIA role and accessible name found in the snapshot.
-    
-    Example: role="button", name="Sign In" or role="link", name="Learn More"
+    Clique sur un élément interactif de la page web en le ciblant par son rôle ARIA et son nom d'accessibilité, tels qu'ils apparaissent dans l'instantané ARIA courant.
+
+    Utiliser cet outil pour simuler un clic utilisateur sur des boutons, liens,
+    cases à cocher, onglets ou tout autre élément interactif identifiable par ARIA.
+
+    Args:
+        role (str): Rôle ARIA de l'élément cible tel qu'il figure dans l'instantané
+                    (ex. : "button", "link", "checkbox", "tab", "menuitem", ...).
+        name (str): Nom d'accessibilité de l'élément, correspondant à son libellé
+                    visible ou à son attribut aria-label
+                    (ex. : "Se connecter", "En savoir plus", "Fermer", ...).
+
+    Returns:
+        Command: Objet de mise à jour contenant un ToolMessage avec :
+            - Une confirmation de succès ou un message d'erreur détaillé.
+            - Un nouvel instantané ARIA de la page après le clic, reflétant
+            l'état mis à jour (nouvelle page, modal ouverte, contenu rechargé…).
+
+    Examples:
+        # Cliquer sur un bouton de soumission
+        click_element(role="button", name="Se connecter")
+
+        # Suivre un lien de navigation
+        click_element(role="link", name="En savoir plus")
+
+        # Cocher une case
+        click_element(role="checkbox", name="Accepter les conditions")
+
+        # Ouvrir un menu déroulant
+        click_element(role="menuitem", name="Mon compte")
     """
     print("enter click element tool")
     page = runtime.context["page"]
@@ -78,11 +105,46 @@ async def fill_text_field(
     name: Optional[str] = None,
 ) -> Command:
     """
-    Fills a text field using credentials. Matches field by role (usually 'textbox') and name.
-    
-    ## ⚠️ CREDENTIALS:
-    - Pass 'EMAIL', 'PASSWORD', or 'NEW_EMAIL' to identifier.
-    - DO NOT pass the actual secret value.
+    Remplit un champ de saisie avec une valeur confidentielle récupérée depuis le contexte sécurisé de l'agent, en ciblant le champ par son rôle ARIA et son nom d'accessibilité.
+
+    ⚠️  SÉCURITÉ — RÈGLE ABSOLUE :
+        Ne jamais transmettre la valeur réelle d'un secret (mot de passe, e-mail…).
+        Passer uniquement l'identifiant symbolique correspondant à la clé de
+        credentials stockée dans le contexte de l'agent.
+
+    Identifiants symboliques acceptés :
+        - "EMAIL"      → adresse e-mail de connexion
+        - "PASSWORD"   → mot de passe actuel
+        - "NEW_EMAIL"  → nouvelle adresse e-mail (changement de compte)
+
+    Args:
+        identifier (str): Clé symbolique du secret à injecter (ex. : "EMAIL",
+                        "PASSWORD", "NEW_EMAIL"). Insensible à la casse.
+        role (str):       Rôle ARIA du champ cible (défaut : "textbox").
+                        Peut être "searchbox", "spinbutton", etc.
+        name (str | None): Nom d'accessibilité du champ, correspondant à son
+                        libellé ou placeholder dans l'instantané ARIA
+                        (ex. : "Adresse e-mail", "Mot de passe").
+                        Si None, le premier champ du rôle donné est ciblé.
+
+    Returns:
+        Command: Objet de mise à jour contenant un ToolMessage avec :
+            - ✅ Confirmation de remplissage réussi avec l'identifiant et le champ ciblé.
+            - ❌ Message d'erreur détaillé en cas d'échec de localisation ou de saisie.
+            - Un nouvel instantané ARIA de la page après le remplissage.
+
+    Examples:
+        # Remplir le champ e-mail
+        fill_text_field(identifier="EMAIL", role="textbox", name="Adresse e-mail")
+
+        # Remplir le champ mot de passe
+        fill_text_field(identifier="PASSWORD", role="textbox", name="Mot de passe")
+
+        # Remplir un champ de recherche sans nom précis
+        fill_text_field(identifier="EMAIL", role="searchbox")
+
+        # Mettre à jour avec une nouvelle adresse e-mail
+        fill_text_field(identifier="NEW_EMAIL", role="textbox", name="Nouvel e-mail")
     """
     page = runtime.context['page']
     

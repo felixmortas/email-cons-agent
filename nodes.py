@@ -77,7 +77,7 @@ async def find_login_page(state: State, runtime: Runtime[ContextSchema]) -> Stat
 
     inputs = {
         "messages": [
-            HumanMessage(f"Markdown ARIA content of the starting page for the website\n\n{aria_content}")
+            HumanMessage(f"Contenu ARIA au format Markdown de la page actuelle du site web\n\n{aria_content}")
         ],
     }
 
@@ -101,7 +101,7 @@ async def login(state: State, runtime: Runtime[ContextSchema]) -> State:
 
     inputs = {
         "messages": [
-            HumanMessage(f"Markdown ARIA content of the starting page for the website\n\n{aria_content}")
+            HumanMessage(f"Contenu ARIA au format Markdown de la page actuelle du site web\n\n{aria_content}")
         ],
     }
 
@@ -124,7 +124,7 @@ async def open_email_settings(state: State, runtime: Runtime[ContextSchema]) -> 
 
     inputs = {
         "messages": [
-            HumanMessage(f"Markdown ARIA content of the starting page for the website\n\n{aria_content}")
+            HumanMessage(f"Contenu ARIA au format Markdown de la page actuelle du site web\n\n{aria_content}")
         ],
     }
 
@@ -147,7 +147,7 @@ async def change_email(state: State, runtime: Runtime[ContextSchema]) -> State:
 
     inputs = {
         "messages": [
-            HumanMessage(f"Markdown ARIA content of the starting page for the website\n\n{aria_content}")
+            HumanMessage(f"Contenu ARIA au format Markdown de la page actuelle du site web\n\n{aria_content}")
         ],
     }
 
