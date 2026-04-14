@@ -1,155 +1,114 @@
-from typing import Annotated
-
+from typing import Annotated, Optional
 from langchain.messages import ToolMessage
 from langgraph.types import Command
 from langchain.tools import InjectedToolCallId, tool, ToolRuntime
 from agent.context import Context
-from agent.browser_helpers import extract_semantic_html, _click_element, _fill_text_field
 
-@tool
-async def read_page_html(runtime: ToolRuntime[Context], tool_call_id: Annotated[str, InjectedToolCallId]) -> str:
-    """
-    Returns compact page elements: <tag>text</tag> or <tag id="x" class="y" type="z">
-    """
-    page = runtime.context['page']
-    html_content = await extract_semantic_html(page)
+# Helper to get the snapshot consistently across tools
+async def get_aria_snapshot(page) -> str:
+    """Retrieves the YAML-style accessibility snapshot of the page body."""
+    print("Enter get aria snapshot")
+    return await page.locator("body").aria_snapshot()
+    # return await page.ariaSnapshot(mode="ai")
 
-    return Command(update={
-        'current_url': page.url,
-        "messages": [ToolMessage(
-            content=f"HTML Content:\n{html_content}",
-            tool_call_id=tool_call_id,
-        )]
-    })
+# @tool
+# async def read_page_snapshot(runtime: ToolRuntime[Context], tool_call_id: Annotated[str, InjectedToolCallId]) -> Command:
+#     """
+#     Returns a YAML representation of the page's semantic structure (Accessibility Tree).
+#     Use this to identify roles (button, link, heading) and names for interaction.
+#     """
+#     print("read snapshot tool")
+#     page = runtime.context['page']
+#     snapshot = await get_aria_snapshot(page)
+#     print("snapshot get")
 
+#     return Command(update={
+#         "messages": [ToolMessage(
+#             content=f"Current Page Snapshot (YAML):\n{snapshot}",
+#             tool_call_id=tool_call_id,
+#         )]
+#     })
 
 @tool
 async def click_element(
     runtime: ToolRuntime[Context],
     tool_call_id: Annotated[str, InjectedToolCallId],
-    text: str = "",
-    tag: str = "",
-    id_name: str = "",
-    class_name: str = "",
-    type_name: str = ""
+    role: str,
+    name: str,
 ) -> Command:
     """
-    Clicks a DOM element identified by a unique combination of attributes, then returns the updated page elements.
-
-    Provide at least tag and another attribute to uniquely identify the target element.
-
-    Exemple: text, tag OR tag, class_name, type_name
-
-    Args:
-        text: Visible text content of the element (e.g. link text); [REQUIRED if possible]
-        tag: HTML tag name of the element (e.g. "button", "a", "input"); [REQUIRED]
-        id_name: The element's `id` attribute; [REQUIRED if possible]
-        class_name: One or more CSS classes on the element (space-separated); [REQUIRED if possible]
-        type_name: The element's `type` attribute (e.g. "submit", "checkbox"). [REQUIRED if possible]
-
-    Returns:
-        A compact representation of the page elements after the click.
+    Clicks an element based on its ARIA role and accessible name found in the snapshot.
+    
+    Example: role="button", name="Sign In" or role="link", name="Learn More"
     """
+    print("enter click element tool")
     page = runtime.context["page"]
-
-    navigation_occurred = False
-
-    async def do_click_and_read():
-        nonlocal navigation_occurred
-        click_response = await _click_element(runtime, text, tag, id_name, class_name, type_name)
-        return click_response
+    
+    async def perform_click():
+        # Using Playwright's role-based locator which matches the snapshot structure
+        locator = page.get_by_role(role, name=name).first
+        await locator.click()
+        return f"Successfully clicked {role} '{name}'"
 
     try:
-        async with page.expect_navigation(wait_until="domcontentloaded", timeout=5000):
-            click_response = await do_click_and_read()
-        navigation_occurred = True
+        # Attempt to click with a short navigation timeout
+        async with page.expect_navigation(wait_until="load", timeout=3000):
+            result_msg = await perform_click()
     except Exception:
-        # No navigation — click still happened, just no page change
-        click_response = await _click_element(runtime, text, tag, id_name, class_name, type_name)
+        # Fallback if no navigation occurs
+        try:
+            result_msg = await perform_click()
+        except Exception as e:
+            result_msg = f"❌ Failed to click {role} '{name}': {str(e)}"
 
-    html_content = await extract_semantic_html(page)
+    new_snapshot = await get_aria_snapshot(page)
     return Command(update={
-        'current_url': page.url,
         "messages": [ToolMessage(
-            content=f"{click_response}\n\nHTML Content:\n{html_content}",
+            content=f"{result_msg}\n\nNew Page Snapshot:\n{new_snapshot}",
             tool_call_id=tool_call_id,
         )]
     })
-    
+
 @tool
 async def fill_text_field(
     runtime: ToolRuntime[Context],
+    tool_call_id: Annotated[str, InjectedToolCallId],
     identifier: str,
-    element_tag: str,
-    element_id: str = "",
-    element_class: str = "",
-    element_type: str = ""
-) -> str:
+    role: str = "textbox",
+    name: Optional[str] = None,
+) -> Command:
     """
-    Fills field using ONE UNIQUE selector.
-    The selector is choosed using a unique combination of: tag and/or id and/or class and/or type.
-    The 'identifier' parameter determines which credential to use.
-    Read the HTML page again if the filling action fails.
+    Fills a text field using credentials. Matches field by role (usually 'textbox') and name.
     
-    ## ⚠️ CRITICAL - CREDENTIALS HANDLING:
-    - NEVER ask for credentials - they are AUTOMATICALLY retrieved from environment variables
-    - Use fill_text_field with 'identifier' parameter ONLY:
-    - DO NOT pass the 'value' parameter - it's handled automatically
-
-    ## FIELD IDENTIFICATION:
-    - The website language can be French or English
-    - Email field: look for id containing 'email', type='email' or something relevent
-    - Password field: look for id containing 'passwd', 'password', type='password' or something relevent
-
-    ## EXAMPLE CALLS:
-    ✅ CORRECT: fill_text_field(tag='input', identifier='email', element_id='email', element_class='account_input', element_type='email')
-    ✅ CORRECT: fill_text_field(tag='input', identifier='password', element_id='passwd', element_class='account_input', element_type='password')
-        
-    Args:
-        identifier: 'EMAIL' | 'PASSWORD' | 'NEW_EMAIL' (REQUIRED)
-        element_tag: HTML tag from read_page_html (e.g., 'input') (REQUIRED)
-        element_id: HTML id from read_page_html (e.g., 'email', 'passwd')
-        element_class: HTML class from read_page_html (e.g., 'account_input')
-        element_type: HTML type from read_page_html (e.g., 'email', 'password')
-
+    ## ⚠️ CREDENTIALS:
+    - Pass 'EMAIL', 'PASSWORD', or 'NEW_EMAIL' to identifier.
+    - DO NOT pass the actual secret value.
     """
     page = runtime.context['page']
-    fill_response = await _fill_text_field(runtime, identifier, element_tag, element_id, element_class, element_type)
+    
+    # Logic to retrieve secret from context/env (keeping your original algorithm intent)
+    value = runtime.context.get('credentials', {}).get(identifier.lower(), "")
+    
+    try:
+        # Locate by role and name (the name is usually the label or placeholder in the snapshot)
+        locator = page.get_by_role(role, name=name).first
+        await locator.fill(value)
+        response = f"✅ Filled {identifier} into {role} '{name}'"
+    except Exception as e:
+        response = f"❌ Failed to fill {identifier}: {str(e)}"
 
-    if fill_response.startswith('❌'):
-        html_content = await extract_semantic_html(page)
-        return f"{fill_response}\n\nHTML Content:\n{html_content}"
-    return fill_response
-
-
-@tool
-async def complete_step(step: str, runtime: ToolRuntime[Context], tool_call_id: Annotated[str, InjectedToolCallId]) -> Command:
-    """
-    Signals that the step in progress has been completed.
-
-    Args: 
-        step: Step of the CURRENT PROGRESS STATE.
-    """
-    page = runtime.context["page"]
-    current_url = page.url
-
-    html_content = await extract_semantic_html(page)
-
+    new_snapshot = await get_aria_snapshot(page)
     return Command(update={
-        step: True,
-        'last_step_url': current_url,
         "messages": [ToolMessage(
-            content=f"Step '{step}' marked as complete.\n\nHTML Content: {html_content}",
+            content=f"{response}\n\nNew Page Snapshot:\n{new_snapshot}",
             tool_call_id=tool_call_id,
         )]
     })
 
 
-
 def get_tools() -> list:
-    base_tools = [
-        read_page_html,
+    return [
+        # read_page_snapshot,
         click_element,
         fill_text_field,
     ]
-    return base_tools

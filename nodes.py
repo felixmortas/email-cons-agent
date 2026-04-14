@@ -19,8 +19,8 @@ from langgraph.runtime import Runtime
 
 # from agent import create_email_agent, invoke_email_agent
 from agent.agent import create_email_agent
-from agent.browser_helpers import extract_semantic_html
 from agent.context import Context
+from agent.tools import get_aria_snapshot
 from state import State
 # from search_engine import search_engine
 from context import ContextSchema
@@ -57,7 +57,7 @@ async def init_page(state: State, runtime: Runtime[ContextSchema]) -> State:
     print('init_page')
     page = runtime.context.page
     url: str  = state["initial_url"]
-    await page.goto(url, wait_until="domcontentloaded")
+    await page.goto(url, wait_until="load")
     return {}
 
 
@@ -68,18 +68,18 @@ async def find_login_page(state: State, runtime: Runtime[ContextSchema]) -> Stat
     Navigate to the website's login page.
     Returns a summary AIMessage appended to graph state messages.
     """
+    print("enter find login page")
     function_name = "find_login_page"
     system_prompt = _load_prompt(f"{function_name}.md")
     page = runtime.context.page
     agent = create_email_agent(system_prompt, page)
-    html_content = await extract_semantic_html(page)
+    aria_content = await get_aria_snapshot(page)
 
     inputs = {
         "messages": [
-            HumanMessage(f"HTML content of the starting page for the website\n\n{html_content}")
+            HumanMessage(f"Markdown ARIA content of the starting page for the website\n\n{aria_content}")
         ],
     }
-
 
     result = await agent.ainvoke(inputs, context=Context(page=page))
     last_message = result["messages"][-1]
@@ -92,18 +92,18 @@ async def login(state: State, runtime: Runtime[ContextSchema]) -> State:
     Log in using credentials from environment variables (EMAIL, PASSWORD).
     Returns a summary AIMessage.
     """
+    print("enter login")
     function_name = "login"
     system_prompt = _load_prompt(f"{function_name}.md")
     page = runtime.context.page
     agent = create_email_agent(system_prompt, page)
-    html_content = await extract_semantic_html(page)
+    aria_content = await get_aria_snapshot(page)
 
     inputs = {
         "messages": [
-            HumanMessage(f"HTML content of the starting page for the website\n\n{html_content}")
+            HumanMessage(f"Markdown ARIA content of the starting page for the website\n\n{aria_content}")
         ],
     }
-
 
     result = await agent.ainvoke(inputs, context=Context(page=page))
     last_message = result["messages"][-1]
@@ -120,14 +120,13 @@ async def open_email_settings(state: State, runtime: Runtime[ContextSchema]) -> 
     system_prompt = _load_prompt(f"{function_name}.md")
     page = runtime.context.page
     agent = create_email_agent(system_prompt, page)
-    html_content = await extract_semantic_html(page)
+    aria_content = await get_aria_snapshot(page)
 
     inputs = {
         "messages": [
-            HumanMessage(f"HTML content of the starting page for the website\n\n{html_content}")
+            HumanMessage(f"Markdown ARIA content of the starting page for the website\n\n{aria_content}")
         ],
     }
-
 
     result = await agent.ainvoke(inputs, context=Context(page=page))
     last_message = result["messages"][-1]
@@ -144,14 +143,13 @@ async def change_email(state: State, runtime: Runtime[ContextSchema]) -> State:
     system_prompt = _load_prompt(f"{function_name}.md")
     page = runtime.context.page
     agent = create_email_agent(system_prompt, page)
-    html_content = await extract_semantic_html(page)
+    aria_content = await get_aria_snapshot(page)
 
     inputs = {
         "messages": [
-            HumanMessage(f"HTML content of the starting page for the website\n\n{html_content}")
+            HumanMessage(f"Markdown ARIA content of the starting page for the website\n\n{aria_content}")
         ],
     }
-
 
     result = await agent.ainvoke(inputs, context=Context(page=page))
     last_message = result["messages"][-1]
