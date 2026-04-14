@@ -5,8 +5,8 @@ channels:
   - defaults
 dependencies:
   - python=3.13.11
-  - langchain=1.2.8
-  - langgraph=1.0.7
+  - langchain=1.2.15
+  - langgraph=1.1.6
   - langchain-mistralai=1.1.1
   - langchain-google-genai=4.2.1
   - langfuse-python=3.14.4

@@ -10,6 +10,7 @@ import argparse
 import asyncio
 
 from dotenv import load_dotenv
+load_dotenv()
 
 from context import ContextSchema
 from graph import graph
@@ -74,7 +75,6 @@ async def run(args: argparse.Namespace) -> None:
 
 
 def main() -> None:
-    load_dotenv()
     args = parse_args()
     asyncio.run(run(args))
 
