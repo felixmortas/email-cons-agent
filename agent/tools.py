@@ -1,33 +1,150 @@
+import re
 from typing import Annotated, Optional
 from langchain.messages import ToolMessage
 from langgraph.types import Command
 from langchain.tools import InjectedToolCallId, tool, ToolRuntime
 from agent.context import Context
 
-# Helper to get the snapshot consistently across tools
-async def get_aria_snapshot(page) -> str:
-    """Retrieves the YAML-style accessibility snapshot of the page body."""
+# ── Actionable ARIA roles ───────────────────────────────────────────────────
+
+# Roles required by the LLM to call `click_element` or `fill_text_field`
+_ACTIONABLE_ROLES = {
+    # Clickable
+    "button", "link", "checkbox", "radio", "tab", "menuitem",
+    "menuitemcheckbox", "menuitemradio", "option", "switch",
+    "treeitem", "gridcell", "columnheader", "rowheader",
+    # Seizable
+    "textbox", "searchbox", "spinbutton", "combobox", "listbox",
+    "slider", "scrollbar",
+    # Useful navigation containers (included for context)
+    "navigation", "banner", "main", "form", "dialog",
+    "alertdialog", "menu", "menubar", "tablist", "toolbar",
+    "listitem",  # kept only when it contains an actionable child
+}
+
+# Purely decorative/informational line → always ignored
+_IGNORED_ROLES = {
+    "img", "image", "separator", "presentation", "none",
+    "paragraph", "contentinfo", "status", "log", "timer",
+    "progressbar", "meter", "marquee",
+}
+
+# Regex that captures (indentation, role, name_fragment)
+# Examples of ARIA Playwright lines:
+#   - button "Se connecter"
+#   - link "Accueil":
+#   - textbox "Adresse e-mail"
+#   - heading "Mon compte" [level=2]
+_LINE_RE = re.compile(
+    r'^(?P<indent>\s*)'
+    r'-\s+'
+    r'(?P<role>[a-zA-Z]+)'
+    r'(?:\s+"(?P<name>[^"]*)")?'
+    r'(?P<rest>.*)'
+)
+
+
+def clean_aria_snapshot(snapshot: str) -> str:
+    """
+    Filters an ARIA Playwright snapshot (YAML-like format) to retain
+    only the lines useful for `click_element` and `fill_text_field`.
+
+    Strategy:
+      1. Parse each line to extract (indentation, role, name).
+      2. Keep only lines whose role is actionable.
+      3. Remove purely informational heading/img/paragraph/etc. blocks.
+      4. Collapse consecutive empty lines.
+
+    Args:
+        snapshot: Raw text returned by page.locator(“body”).aria_snapshot()
+
+    Returns:
+        Streamlined snapshot, ready to be injected into the LLM prompt.
+    """
+    lines = snapshot.splitlines()
+    kept: list[str] = []
+
+    for line in lines:
+        stripped = line.strip()
+
+        # Empty lines or purely structural lines with no function → skip
+        if not stripped or stripped.startswith("#"):
+            continue
+
+        match = _LINE_RE.match(line)
+        if not match:
+            # ARIA attribute without a hyphen (e.g., value continuation) → ignored
+            continue
+
+        role = match.group("role").lower()
+        name = match.group("name") or ""
+        indent = match.group("indent")
+        rest = match.group("rest").strip()
+
+        # Roles explicitly ignored
+        if role in _IGNORED_ROLES:
+            continue
+
+        # Headings: We keep only level 1 headings
+        # (page title) to provide the minimum context
+        if role == "heading":
+            level_match = re.search(r'\[level=(\d+)\]', rest)
+            level = int(level_match.group(1)) if level_match else 99
+            if level <= 1 and name:
+                kept.append(f"{indent}- heading \"{name}\"")
+            continue
+
+        # Plain text with no clickable elements
+        if role == "text":
+            continue
+
+        # Actionable step: We'll rebuild the line properly
+        if role in _ACTIONABLE_ROLES:
+            # We keep the name and, for links, the URL if available
+            url_match = re.search(r'/url:\s*(\S+)', rest)
+            url_part = f"  →  {url_match.group(1)}" if url_match else ""
+
+            if name:
+                kept.append(f"{indent}- {role} \"{name}\"{url_part}")
+            else:
+                # Unnamed container (e.g., navigation, form) → keep it to
+                # indicate the section, but without a superfluous name
+                kept.append(f"{indent}- {role}{url_part}")
+            continue
+
+        # Any other role not listed → silently ignored
+
+    # Remove duplicate empty rows and return
+    result_lines: list[str] = []
+    prev_blank = False
+    for l in kept:
+        is_blank = not l.strip()
+        if is_blank and prev_blank:
+            continue
+        result_lines.append(l)
+        prev_blank = is_blank
+
+    return "\n".join(result_lines)
+
+
+# ── Helper snapshot ───────────────────────────────────────────────────────────
+
+async def get_aria_snapshot(page, clean: bool = True) -> str:
+    """
+    Retrieves the ARIA snapshot of the page.
+
+    Args:
+        page:  Playwright Page instance.
+        clean: If True (default), applies clean_aria_snapshot() before
+               returning the text, significantly reducing the size
+               sent to the LLM.
+    """
     print("Enter get aria snapshot")
-    return await page.locator("body").aria_snapshot()
-    # return await page.ariaSnapshot(mode="ai")
+    raw = await page.locator("body").aria_snapshot()
+    return clean_aria_snapshot(raw) if clean else raw
 
-# @tool
-# async def read_page_snapshot(runtime: ToolRuntime[Context], tool_call_id: Annotated[str, InjectedToolCallId]) -> Command:
-#     """
-#     Returns a YAML representation of the page's semantic structure (Accessibility Tree).
-#     Use this to identify roles (button, link, heading) and names for interaction.
-#     """
-#     print("read snapshot tool")
-#     page = runtime.context['page']
-#     snapshot = await get_aria_snapshot(page)
-#     print("snapshot get")
 
-#     return Command(update={
-#         "messages": [ToolMessage(
-#             content=f"Current Page Snapshot (YAML):\n{snapshot}",
-#             tool_call_id=tool_call_id,
-#         )]
-#     })
+# ── Outils LangChain ──────────────────────────────────────────────────────────
 
 @tool
 async def click_element(
@@ -70,31 +187,29 @@ async def click_element(
     """
     print("enter click element tool")
     page = runtime.context["page"]
-    
+
     async def perform_click():
-        # Using Playwright's role-based locator which matches the snapshot structure
         locator = page.get_by_role(role, name=name).first
         await locator.click()
         return f"Clic effectué avec succès sur {role} '{name}'"
 
     try:
-        # Attempt to click with a short navigation timeout
-        async with page.expect_navigation(wait_until="load", timeout=3000):
+        async with page.expect_navigation(wait_until="load", timeout=10000):
             result_msg = await perform_click()
     except Exception:
-        # Fallback if no navigation occurs
         try:
             result_msg = await perform_click()
         except Exception as e:
-            result_msg = f"❌ Impossible de cliquer sur {role} '{name}': {str(e)}"
+            result_msg = f"❌ Impossible de cliquer sur {role} '{name}' ou timeout mais click peut-être réussi : {str(e)}"
 
     new_snapshot = await get_aria_snapshot(page)
     return Command(update={
         "messages": [ToolMessage(
-            content=f"{result_msg}\n\Nouvelle page au format Markdown :\n{new_snapshot}",
+            content=f"{result_msg}\nNouvelle page au format Markdown :\n{new_snapshot}",
             tool_call_id=tool_call_id,
         )]
     })
+
 
 @tool
 async def fill_text_field(
@@ -147,12 +262,9 @@ async def fill_text_field(
         fill_text_field(identifier="NEW_EMAIL", role="textbox", name="Nouvel e-mail")
     """
     page = runtime.context['page']
-    
-    # Logic to retrieve secret from context/env (keeping your original algorithm intent)
     value = runtime.context.get('credentials', {}).get(identifier.lower(), "")
-    
+
     try:
-        # Locate by role and name (the name is usually the label or placeholder in the snapshot)
         locator = page.get_by_role(role, name=name).first
         await locator.fill(value)
         response = f"✅ {identifier} saisi dans le {role} '{name}'"
@@ -162,7 +274,7 @@ async def fill_text_field(
     new_snapshot = await get_aria_snapshot(page)
     return Command(update={
         "messages": [ToolMessage(
-            content=f"{response}\n\Nouvelle page au format Markdown :\n{new_snapshot}",
+            content=f"{response}\nNouvelle page au format Markdown :\n{new_snapshot}",
             tool_call_id=tool_call_id,
         )]
     })
@@ -170,7 +282,6 @@ async def fill_text_field(
 
 def get_tools() -> list:
     return [
-        # read_page_snapshot,
         click_element,
         fill_text_field,
     ]
