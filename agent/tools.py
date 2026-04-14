@@ -75,7 +75,7 @@ async def click_element(
         # Using Playwright's role-based locator which matches the snapshot structure
         locator = page.get_by_role(role, name=name).first
         await locator.click()
-        return f"Successfully clicked {role} '{name}'"
+        return f"Clic effectué avec succès sur {role} '{name}'"
 
     try:
         # Attempt to click with a short navigation timeout
@@ -86,12 +86,12 @@ async def click_element(
         try:
             result_msg = await perform_click()
         except Exception as e:
-            result_msg = f"❌ Failed to click {role} '{name}': {str(e)}"
+            result_msg = f"❌ Impossible de cliquer sur {role} '{name}': {str(e)}"
 
     new_snapshot = await get_aria_snapshot(page)
     return Command(update={
         "messages": [ToolMessage(
-            content=f"{result_msg}\n\nNew Page Snapshot:\n{new_snapshot}",
+            content=f"{result_msg}\n\Nouvelle page au format Markdown :\n{new_snapshot}",
             tool_call_id=tool_call_id,
         )]
     })
@@ -155,14 +155,14 @@ async def fill_text_field(
         # Locate by role and name (the name is usually the label or placeholder in the snapshot)
         locator = page.get_by_role(role, name=name).first
         await locator.fill(value)
-        response = f"✅ Filled {identifier} into {role} '{name}'"
+        response = f"✅ {identifier} saisi dans le {role} '{name}'"
     except Exception as e:
-        response = f"❌ Failed to fill {identifier}: {str(e)}"
+        response = f"❌ Échec de la saisie de {identifier}: {str(e)}"
 
     new_snapshot = await get_aria_snapshot(page)
     return Command(update={
         "messages": [ToolMessage(
-            content=f"{response}\n\nNew Page Snapshot:\n{new_snapshot}",
+            content=f"{response}\n\Nouvelle page au format Markdown :\n{new_snapshot}",
             tool_call_id=tool_call_id,
         )]
     })
