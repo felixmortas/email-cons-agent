@@ -68,7 +68,8 @@ async def find_login_page(state: State, runtime: Runtime[ContextSchema]) -> Stat
     Navigate to the website's login page.
     Returns a summary AIMessage appended to graph state messages.
     """
-    system_prompt = _load_prompt("find_login_page.md")
+    function_name = "find_login_page"
+    system_prompt = _load_prompt(f"{function_name}.md")
     page = runtime.context.page
     agent = create_email_agent(system_prompt, page)
     html_content = await extract_semantic_html(page)
@@ -80,15 +81,10 @@ async def find_login_page(state: State, runtime: Runtime[ContextSchema]) -> Stat
     }
 
 
-    result = await agent.ainvoke(inputs, context=Context(page=page), 
-        # config={
-            # "callbacks": [langfuse_handler], 
-            # "metadata": {"langfuse_tags": [website_name]}
-        # }
-    )
+    result = await agent.ainvoke(inputs, context=Context(page=page))
     last_message = result["messages"][-1]
 
-    return {"messages": [AIMessage(content=last_message.content, name="find_login_page")]}
+    return {"messages": [AIMessage(content=last_message.content, name=function_name)]}
 
 
 async def login(state: State, runtime: Runtime[ContextSchema]) -> State:
@@ -96,7 +92,23 @@ async def login(state: State, runtime: Runtime[ContextSchema]) -> State:
     Log in using credentials from environment variables (EMAIL, PASSWORD).
     Returns a summary AIMessage.
     """
-    return {"messages": [AIMessage(content="result login", name="login")]}
+    function_name = "login"
+    system_prompt = _load_prompt(f"{function_name}.md")
+    page = runtime.context.page
+    agent = create_email_agent(system_prompt, page)
+    html_content = await extract_semantic_html(page)
+
+    inputs = {
+        "messages": [
+            HumanMessage(f"HTML content of the starting page for the website\n\n{html_content}")
+        ],
+    }
+
+
+    result = await agent.ainvoke(inputs, context=Context(page=page))
+    last_message = result["messages"][-1]
+
+    return {"messages": [AIMessage(content=last_message.content, name=function_name)]}
 
 
 async def open_email_settings(state: State, runtime: Runtime[ContextSchema]) -> State:
@@ -104,7 +116,23 @@ async def open_email_settings(state: State, runtime: Runtime[ContextSchema]) -> 
     Navigate to the account section where the email address can be changed.
     Returns a summary AIMessage.
     """
-    return {"messages": [AIMessage(content="result open_email_settings", name="open_email_settings")]}
+    function_name = "open_email_settings"
+    system_prompt = _load_prompt(f"{function_name}.md")
+    page = runtime.context.page
+    agent = create_email_agent(system_prompt, page)
+    html_content = await extract_semantic_html(page)
+
+    inputs = {
+        "messages": [
+            HumanMessage(f"HTML content of the starting page for the website\n\n{html_content}")
+        ],
+    }
+
+
+    result = await agent.ainvoke(inputs, context=Context(page=page))
+    last_message = result["messages"][-1]
+
+    return {"messages": [AIMessage(content=last_message.content, name=function_name)]}
 
 
 async def change_email(state: State, runtime: Runtime[ContextSchema]) -> State:
@@ -112,5 +140,20 @@ async def change_email(state: State, runtime: Runtime[ContextSchema]) -> State:
     Fill and submit the email change form.
     Returns a summary AIMessage.
     """
-    print(state["messages"])
-    return {"messages": [AIMessage(content="result change_email", name="change_email")]}
+    function_name = "change_email"
+    system_prompt = _load_prompt(f"{function_name}.md")
+    page = runtime.context.page
+    agent = create_email_agent(system_prompt, page)
+    html_content = await extract_semantic_html(page)
+
+    inputs = {
+        "messages": [
+            HumanMessage(f"HTML content of the starting page for the website\n\n{html_content}")
+        ],
+    }
+
+
+    result = await agent.ainvoke(inputs, context=Context(page=page))
+    last_message = result["messages"][-1]
+
+    return {"messages": [AIMessage(content=last_message.content, name=function_name)]}
