@@ -13,12 +13,14 @@ summary is appended to graph state.
 """
 
 from pathlib import Path
-from typing import Any
 
-from langchain_core.messages import AIMessage
+from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.runtime import Runtime
 
 # from agent import create_email_agent, invoke_email_agent
+from agent.agent import create_email_agent
+from agent.browser_helpers import extract_semantic_html
+from agent.context import Context
 from state import State
 # from search_engine import search_engine
 from context import ContextSchema
@@ -43,7 +45,7 @@ def find_url(state: State) -> State:
     print('find_url')
     website_name = state.get("website_name", "")
     # url = search_engine.search(query=website_name)
-    return {"initial_url": url}
+    return {"initial_url": "url"}
 
 
 async def init_page(state: State, runtime: Runtime[ContextSchema]) -> State:
@@ -53,7 +55,7 @@ async def init_page(state: State, runtime: Runtime[ContextSchema]) -> State:
     Returns an empty State — page is a live reference, no copy needed.
     """
     print('init_page')
-    page: Any = runtime.context.page
+    page = runtime.context.page
     url: str  = state["initial_url"]
     await page.goto(url, wait_until="domcontentloaded")
     return {}
@@ -66,7 +68,27 @@ async def find_login_page(state: State, runtime: Runtime[ContextSchema]) -> Stat
     Navigate to the website's login page.
     Returns a summary AIMessage appended to graph state messages.
     """
-    return {"messages": [AIMessage(content="result find_login_page", name="find_login_page")]}
+    system_prompt = _load_prompt("find_login_page.md")
+    page = runtime.context.page
+    agent = create_email_agent(system_prompt, page)
+    html_content = await extract_semantic_html(page)
+
+    inputs = {
+        "messages": [
+            HumanMessage(f"HTML content of the starting page for the website\n\n{html_content}")
+        ],
+    }
+
+
+    result = await agent.ainvoke(inputs, context=Context(page=page), 
+        # config={
+            # "callbacks": [langfuse_handler], 
+            # "metadata": {"langfuse_tags": [website_name]}
+        # }
+    )
+    last_message = result["messages"][-1]
+
+    return {"messages": [AIMessage(content=last_message.content, name="find_login_page")]}
 
 
 async def login(state: State, runtime: Runtime[ContextSchema]) -> State:
