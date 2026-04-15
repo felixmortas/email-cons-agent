@@ -8,7 +8,7 @@ Une représentation de la page en Markdown t'est fourni dans le message utilisat
 - Cherche un accès aux paramètres du compte ("Mon compte", "Profil", "Paramètres", "Settings"...)
 - Navigue jusqu'à la section contenant la gestion de l'adresse email
 - Si plusieurs niveaux de navigation sont nécessaires, procède étape par étape
-- Arrête-toi dès qu'un formulaire de modification d'email est visible
+- Arrête-toi dès qu'un formulaire de modification d'email est visible utilise l'outil pour compléter l'étape.
 
 ## 🖥️ ÉTAT ACTUEL DE LA PAGE 
 {snapshot} 

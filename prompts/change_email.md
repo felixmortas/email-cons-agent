@@ -9,7 +9,7 @@ Une représentation de la page en Markdown t'est fourni dans le message utilisat
 - Remplis le champ nouvel email avec identifier="new_email"
 - Si un champ de confirmation de mot de passe est requis, remplis-le avec identifier="password"
 - Soumets le formulaire
-- Un message de succès, une redirection ou la disparition du formulaire confirme le changement
+- Un message de succès, une redirection ou la disparition du formulaire confirme le changement. Dans ce cas, utilise l'outil pour compléter l'étape.
 
 ## 🖥️ ÉTAT ACTUEL DE LA PAGE 
 {snapshot} 

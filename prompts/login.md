@@ -12,6 +12,7 @@ Une représentation de la page en Markdown t'est fourni dans le message utilisat
 - Clique sur le bouton de soumission du formulaire
 - Tu peux appeler plusieurs outils à la suite (fill_text_input avec identifier="EMAIL" puis "PASSWORD" puis click_button sur "Se connecter")
 - Ne passe pas à autre chose avant que la connexion soit confirmée par une navigation
+- Si tu à te connecter (présence d'un bouton "Mon compte" ou "Mon profil", pas de bouton "Se connecter" par exemple), utilise l'outil pour compléter l'étape.
 
 ## 🖥️ ÉTAT ACTUEL DE LA PAGE 
 {snapshot} 

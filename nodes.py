@@ -22,7 +22,7 @@ from langgraph.runtime import Runtime
 from agent.agent import create_email_agent
 from agent.context import Context
 from models.llm import URLSelection
-from state import State
+from state import State, AgentInputState
 from context import ContextSchema
 from search_engine import search_engine
 
@@ -45,6 +45,7 @@ async def invoke_with_retry(
     page,
     context: Context,
     function_name: str,
+    input_data: AgentInputState,
     max_retries: int = MAX_RETRIES,
 ) -> str:
     """
@@ -72,14 +73,16 @@ async def invoke_with_retry(
     """
     last_content = ""
 
+    fallback_url = input_data.get("fallback_url") or input_data.get("initial_url")
+
     for attempt in range(1, max_retries + 1):
+        if attempt > 1:
+            print(f"[{function_name}] Retry {attempt}: Reset to {fallback_url}")
+            await page.goto(fallback_url, wait_until="load")
+
         agent = agent_factory()
 
-        inputs = {
-            "messages": [
-                HumanMessage("Go !")
-            ],
-        }
+        inputs = {"messages": [HumanMessage("Go !")]}
 
         result = await agent.ainvoke(inputs, context=context)
         last_content = result["messages"][-1].content
@@ -131,7 +134,7 @@ async def init_page(state: State, runtime: Runtime[ContextSchema]) -> State:
 
 # ── ReAct nodes ───────────────────────────────────────────────────────────────
 
-async def find_login_page(state: State, runtime: Runtime[ContextSchema]) -> State:
+async def find_login_page(state: AgentInputState, runtime: Runtime[ContextSchema]) -> State:
     """
     Navigate to the website's login page.
     Retries up to MAX_RETRIES times on ❌. Halts graph on persistent failure.
@@ -147,6 +150,7 @@ async def find_login_page(state: State, runtime: Runtime[ContextSchema]) -> Stat
         page=page,
         context=Context(page=page),
         function_name=function_name,
+        input_data=state,
     )
 
     return {"messages": [AIMessage(content=content, name=function_name)]}
@@ -168,6 +172,7 @@ async def login(state: State, runtime: Runtime[ContextSchema]) -> State:
         page=page,
         context=Context(page=page),
         function_name=function_name,
+        input_data=state,
     )
 
     return {"messages": [AIMessage(content=content, name=function_name)]}
@@ -189,6 +194,7 @@ async def open_email_settings(state: State, runtime: Runtime[ContextSchema]) -> 
         page=page,
         context=Context(page=page),
         function_name=function_name,
+        input_data=state,
     )
 
     return {"messages": [AIMessage(content=content, name=function_name)]}
@@ -210,6 +216,7 @@ async def change_email(state: State, runtime: Runtime[ContextSchema]) -> State:
         page=page,
         context=Context(page=page),
         function_name=function_name,
+        input_data=state,
     )
 
     return {"messages": [AIMessage(content=content, name=function_name)]}

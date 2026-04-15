@@ -260,8 +260,32 @@ async def fill_text_field(
         )]
     })
 
+@tool
+async def complete_step(
+    runtime: ToolRuntime[Context],
+    tool_call_id: Annotated[str, InjectedToolCallId],
+) -> Command:
+    """
+    Marque l'étape actuelle comme réussie et sauvegarde l'URL actuelle.
+    À appeler juste avant de renvoyer le message final avec ✅.
+    """
+    page = runtime.context["page"]
+    current_url = page.url
+    
+    return Command(
+        update={
+            # Met à jour le state du Graph parent
+            "fallback_url": current_url,
+            "messages": [ToolMessage(
+                content=f"✅ Étape sauvegardée à l'URL : {current_url}",
+                tool_call_id=tool_call_id,
+            )]
+        }
+    )
+
 def get_tools() -> list:
     return [
         click_element,
         fill_text_field,
+        complete_step,
     ]
