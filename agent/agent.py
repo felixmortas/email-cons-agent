@@ -7,6 +7,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from agent.tools import get_tools
 from agent.middleware.trim_messages import make_trim_messages
 from agent.middleware.model_fallback import fallback
+from agent.middleware.dynamic_page_snapshot import make_dynamic_page_snapshot
 from agent.state import State
 from agent.context import Context
 
@@ -22,13 +23,15 @@ def create_email_agent(system_prompt, page, model_name: str = "mistral-large-lat
     else:
         raise ValueError(f"Modèle non supporté : {model_name}. Utilisez un modèle 'gemini-*' ou 'mistral-*'.")
     
+    page_snapshot = make_dynamic_page_snapshot(page)
 
     return create_agent(
         model=model, 
         tools=get_tools(), 
         state_schema=State, 
         context_schema=Context, 
-        middleware=[trim_messages, 
+        middleware=[page_snapshot,
+                    trim_messages, 
                     fallback],
         system_prompt=system_prompt,
         debug=True

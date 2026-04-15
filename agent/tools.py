@@ -39,7 +39,7 @@ async def extract_interactive_elements(page):
     """)
     return elements
 
-def format_elements(elements):
+async def format_elements(elements):
     lines = []
 
     for i, el in enumerate(elements):
@@ -59,7 +59,7 @@ def format_elements(elements):
 
 async def get_page_representation(page):
     elements = await extract_interactive_elements(page)
-    return format_elements(elements)
+    return await format_elements(elements)
 
 # ── LangChain Tools ──────────────────────────────────────────────────────────
 
@@ -102,11 +102,10 @@ async def click_element(
     # ❌ sécurité index
     if index < 0 or index >= count:
         result = f"❌ Index {index} invalide (max: {count-1})"
-        snapshot = runtime.state.get("page", "Page inconnue")
 
         return Command(update={
             "messages": [ToolMessage(
-                content=f"{result}\n\nPage:\n{snapshot}",
+                content=result,
                 tool_call_id=tool_call_id,
             )]
         })
@@ -126,11 +125,10 @@ async def click_element(
         visible = await element.is_visible()
         if not visible:
             result = f"❌ Élément index {index} non visible"
-            snapshot = runtime.state.get("page", "Page inconnue")
 
             return Command(update={
                 "messages": [ToolMessage(
-                    content=f"{result}\n\nPage:\n{snapshot}",
+                    content=result,
                     tool_call_id=tool_call_id,
                 )]
             })
@@ -150,12 +148,9 @@ async def click_element(
         except Exception as e:
             result = f"❌ Erreur click index {index}: {str(e)}"
 
-    # 🔄 nouvelle page
-    snapshot = runtime.state.get("page", "Page inconnue")
-
     return Command(update={
         "messages": [ToolMessage(
-            content=f"{result}\n\nPage:\n{snapshot}",
+            content=result,
             tool_call_id=tool_call_id,
         )]
     })
@@ -247,12 +242,10 @@ async def fill_text_field(
         except Exception as fallback_error:
             result = f"❌ Erreur: {str(e)} | Fallback: {str(fallback_error)}"
 
-    # 📄 4. Nouveau snapshot
-    snapshot = runtime.state.get("page", "Page inconnue")
 
     return Command(update={
         "messages": [ToolMessage(
-            content=f"{result}\n\nPage:\n{snapshot}",
+            content=result,
             tool_call_id=tool_call_id,
         )]
     })

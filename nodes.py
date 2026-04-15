@@ -21,7 +21,6 @@ from langgraph.runtime import Runtime
 
 from agent.agent import create_email_agent
 from agent.context import Context
-from agent.tools import get_page_representation
 from models.llm import URLSelection
 from state import State
 from context import ContextSchema
@@ -74,14 +73,11 @@ async def invoke_with_retry(
     last_content = ""
 
     for attempt in range(1, max_retries + 1):
-        aria_content = await get_page_representation(page)
         agent = agent_factory()
 
         inputs = {
             "messages": [
-                HumanMessage(
-                    f"Contenu ARIA au format Markdown de la page actuelle du site web\n\n{aria_content}"
-                )
+                HumanMessage("Go !")
             ],
         }
 
@@ -93,7 +89,7 @@ async def invoke_with_retry(
 
         print(
             f"[{function_name}] Attempt {attempt}/{max_retries} failed: "
-            f"{last_content[:120]}"
+            f"{last_content}"
         )
 
     # All retries exhausted — halt the graph

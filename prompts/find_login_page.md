@@ -13,3 +13,6 @@ Une représentation de la page en Markdown créée avec la snapshot d'accesibili
 **Format de réponse finale (OBLIGATOIRE) :**
 - Commence TOUJOURS ton message final par ✅ si l'objectif est atteint (page de connexion atteinte ou déjà présente), même si tu n'as utilisé aucun outil.
 - Commence par ❌ si tu n'as pas pu atteindre la page de connexion, en expliquant brièvement la raison.
+
+## 🖥️ ÉTAT ACTUEL DE LA PAGE 
+{snapshot} 
