@@ -41,19 +41,29 @@ async def extract_interactive_elements(page):
 
 async def format_elements(elements):
     lines = []
+    display_index = 0  # Counter for valid elements
 
-    for i, el in enumerate(elements):
-        name = el["name"] if el["name"] else "[no-name]"
+    for el in elements:
+        name = el["name"]
+        element_id = el["id"]
+        element_type = el["type"]
+
+        # Filter: Skip elements that have no name, no id, and no type
+        if not name and not element_id and not element_type:
+            continue
 
         attrs = []
-        if el["id"]:
-            attrs.append(f"id={el['id']}")
-        if el["type"]:
-            attrs.append(f"type={el['type']}")
+        if element_id:
+            attrs.append(f"id={element_id}")
+        if element_type:
+            attrs.append(f"type={element_type}")
 
         attr_str = f" [{' '.join(attrs)}]" if attrs else ""
+        display_name = name if name else "[no-name]"
 
-        lines.append(f"- [{i}] {el['role']}: {name}{attr_str}")
+        # Use the display_index and then increment it
+        lines.append(f"- [{display_index}] {el['role']}: {display_name}{attr_str}")
+        display_index += 1
 
     return "\n".join(lines)
 
