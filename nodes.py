@@ -20,7 +20,7 @@ from langgraph.runtime import Runtime
 
 from agent.agent import create_email_agent
 from agent.context import Context
-from agent.tools import get_aria_snapshot
+from agent.tools import get_page_representation
 from state import State
 from context import ContextSchema
 
@@ -71,7 +71,7 @@ async def invoke_with_retry(
     last_content = ""
 
     for attempt in range(1, max_retries + 1):
-        aria_content = await get_aria_snapshot(page)
+        aria_content = await get_page_representation(page)
         agent = agent_factory()
 
         inputs = {
@@ -108,7 +108,6 @@ def find_url(state: State) -> State:
     Only reached when `initial_url` is missing from state.
     Writes `initial_url` back to state.
     """
-    print("find_url")
     website_name = state.get("website_name", "")
     # url = search_engine.search(query=website_name)
     return {"initial_url": "url"}
@@ -120,7 +119,6 @@ async def init_page(state: State, runtime: Runtime[ContextSchema]) -> State:
     The `page` object is already in state, injected by main.py before invoke.
     Returns an empty State — page is a live reference, no copy needed.
     """
-    print("init_page")
     page = runtime.context.page
     url: str = state["initial_url"]
     await page.goto(url, wait_until="load")

@@ -1,284 +1,261 @@
-import re
-from typing import Annotated, Optional
+import os
+from typing import Annotated
 from langchain.messages import ToolMessage
 from langgraph.types import Command
 from langchain.tools import InjectedToolCallId, tool, ToolRuntime
 from agent.context import Context
 
-# ── Actionable ARIA roles ───────────────────────────────────────────────────
+async def extract_interactive_elements(page):
+    elements = await page.evaluate("""
+    () => {
+        const roles = [
+            "button", "link", "textbox", "checkbox", "radio"
+        ];
 
-# Roles required by the LLM to call `click_element` or `fill_text_field`
-_ACTIONABLE_ROLES = {
-    # Clickable
-    "button", "link", "checkbox", "radio", "tab", "menuitem",
-    "menuitemcheckbox", "menuitemradio", "option", "switch",
-    "treeitem", "gridcell", "columnheader", "rowheader",
-    # Seizable
-    "textbox", "searchbox", "spinbutton", "combobox", "listbox",
-    "slider", "scrollbar",
-    # Useful navigation containers (included for context)
-    "navigation", "banner", "main", "form", "dialog",
-    "alertdialog", "menu", "menubar", "tablist", "toolbar",
-    "listitem",  # kept only when it contains an actionable child
-}
+        function getRole(el) {
+            return el.getAttribute("role") || el.tagName.toLowerCase();
+        }
 
-# Purely decorative/informational line → always ignored
-_IGNORED_ROLES = {
-    "img", "image", "separator", "presentation", "none",
-    "paragraph", "contentinfo", "status", "log", "timer",
-    "progressbar", "meter", "marquee",
-}
+        function getName(el) {
+            return (
+                el.innerText ||
+                el.getAttribute("aria-label") ||
+                el.getAttribute("alt") ||
+                ""
+            ).trim();
+        }
 
-# Regex that captures (indentation, role, name_fragment)
-# Examples of ARIA Playwright lines:
-#   - button "Se connecter"
-#   - link "Accueil":
-#   - textbox "Adresse e-mail"
-#   - heading "Mon compte" [level=2]
-_LINE_RE = re.compile(
-    r'^(?P<indent>\s*)'
-    r'-\s+'
-    r'(?P<role>[a-zA-Z]+)'
-    r'(?:\s+"(?P<name>[^"]*)")?'
-    r'(?P<rest>.*)'
-)
+        return Array.from(document.querySelectorAll("button, a, input, [role]"))
+            .map(el => {
+                return {
+                    role: getRole(el),
+                    name: getName(el),
+                    id: el.id || "",
+                    class: el.className || "",
+                    type: el.type || "",
+                };
+            });
+    }
+    """)
+    return elements
 
+def format_elements(elements):
+    lines = []
 
-def clean_aria_snapshot(snapshot: str) -> str:
-    """
-    Filters an ARIA Playwright snapshot (YAML-like format) to retain
-    only the lines useful for `click_element` and `fill_text_field`.
+    for i, el in enumerate(elements):
+        name = el["name"] if el["name"] else "[no-name]"
 
-    Strategy:
-      1. Parse each line to extract (indentation, role, name).
-      2. Keep only lines whose role is actionable.
-      3. Remove purely informational heading/img/paragraph/etc. blocks.
-      4. Collapse consecutive empty lines.
+        attrs = []
+        if el["id"]:
+            attrs.append(f"id={el['id']}")
+        if el["type"]:
+            attrs.append(f"type={el['type']}")
 
-    Args:
-        snapshot: Raw text returned by page.locator(“body”).aria_snapshot()
+        attr_str = f" [{' '.join(attrs)}]" if attrs else ""
 
-    Returns:
-        Streamlined snapshot, ready to be injected into the LLM prompt.
-    """
-    lines = snapshot.splitlines()
-    kept: list[str] = []
+        lines.append(f"- [{i}] {el['role']}: {name}{attr_str}")
 
-    for line in lines:
-        stripped = line.strip()
+    return "\n".join(lines)
 
-        # Empty lines or purely structural lines with no function → skip
-        if not stripped or stripped.startswith("#"):
-            continue
+async def get_page_representation(page):
+    elements = await extract_interactive_elements(page)
+    return format_elements(elements)
 
-        match = _LINE_RE.match(line)
-        if not match:
-            # ARIA attribute without a hyphen (e.g., value continuation) → ignored
-            continue
-
-        role = match.group("role").lower()
-        name = match.group("name") or ""
-        indent = match.group("indent")
-        rest = match.group("rest").strip()
-
-        # Roles explicitly ignored
-        if role in _IGNORED_ROLES:
-            continue
-
-        # Headings: We keep only level 1 headings
-        # (page title) to provide the minimum context
-        if role == "heading":
-            level_match = re.search(r'\[level=(\d+)\]', rest)
-            level = int(level_match.group(1)) if level_match else 99
-            if level <= 1 and name:
-                kept.append(f"{indent}- heading \"{name}\"")
-            continue
-
-        # Plain text with no clickable elements
-        if role == "text":
-            continue
-
-        # Actionable step: We'll rebuild the line properly
-        if role in _ACTIONABLE_ROLES:
-            # We keep the name and, for links, the URL if available
-            url_match = re.search(r'/url:\s*(\S+)', rest)
-            url_part = f"  →  {url_match.group(1)}" if url_match else ""
-
-            if name:
-                kept.append(f"{indent}- {role} \"{name}\"{url_part}")
-            else:
-                # Unnamed container (e.g., navigation, form) → keep it to
-                # indicate the section, but without a superfluous name
-                kept.append(f"{indent}- {role}{url_part}")
-            continue
-
-        # Any other role not listed → silently ignored
-
-    # Remove duplicate empty rows and return
-    result_lines: list[str] = []
-    prev_blank = False
-    for l in kept:
-        is_blank = not l.strip()
-        if is_blank and prev_blank:
-            continue
-        result_lines.append(l)
-        prev_blank = is_blank
-
-    return "\n".join(result_lines)
-
-
-# ── Helper snapshot ───────────────────────────────────────────────────────────
-
-async def get_aria_snapshot(page, clean: bool = True) -> str:
-    """
-    Retrieves the ARIA snapshot of the page.
-
-    Args:
-        page:  Playwright Page instance.
-        clean: If True (default), applies clean_aria_snapshot() before
-               returning the text, significantly reducing the size
-               sent to the LLM.
-    """
-    print("Enter get aria snapshot")
-    raw = await page.locator("body").aria_snapshot()
-    return clean_aria_snapshot(raw) if clean else raw
-
-
-# ── Outils LangChain ──────────────────────────────────────────────────────────
+# ── LangChain Tools ──────────────────────────────────────────────────────────
 
 @tool
 async def click_element(
     runtime: ToolRuntime[Context],
     tool_call_id: Annotated[str, InjectedToolCallId],
-    role: str,
-    name: str,
+    index: int,
 ) -> Command:
     """
-    Clique sur un élément interactif de la page web en le ciblant par son rôle ARIA et son nom d'accessibilité, tels qu'ils apparaissent dans l'instantané ARIA courant.
+    Clique sur un élément interactif en utilisant son INDEX tel qu'affiché dans la représentation actuelle de la page.
 
-    Utiliser cet outil pour simuler un clic utilisateur sur des boutons, liens,
-    cases à cocher, onglets ou tout autre élément interactif identifiable par ARIA.
+    ⚠️ IMPORTANT :
+    - L'index correspond EXACTEMENT à celui affiché dans la liste des éléments interactifs.
+    - Toujours choisir l'index le plus pertinent selon le contexte utilisateur.
+
+    L'index permet de sélectionner des éléments même lorsqu'ils n'ont :
+    - pas de texte
+    - pas de nom accessible (ex: boutons icône comme "account")
 
     Args:
-        role (str): Rôle ARIA de l'élément cible tel qu'il figure dans l'instantané
-                    (ex. : "button", "link", "checkbox", "tab", "menuitem", ...).
-        name (str): Nom d'accessibilité de l'élément, correspondant à son libellé
-                    visible ou à son attribut aria-label
-                    (ex. : "Se connecter", "En savoir plus", "Fermer", ...).
+        index (int): Position de l'élément dans la liste affichée (ex: [0], [1], [2], ...)
 
     Returns:
-        Command: Objet de mise à jour contenant un ToolMessage avec :
-            - Une confirmation de succès ou un message d'erreur détaillé.
-            - Un nouvel instantané ARIA de la page après le clic, reflétant
-            l'état mis à jour (nouvelle page, modal ouverte, contenu rechargé…).
+        Command contenant :
+        - Résultat du clic (succès ou erreur)
+        - Nouvelle représentation de la page
 
     Examples:
-        # Cliquer sur un bouton de soumission
-        click_element(role="button", name="Se connecter")
-
-        # Suivre un lien de navigation
-        click_element(role="link", name="En savoir plus")
-
-        # Cocher une case
-        click_element(role="checkbox", name="Accepter les conditions")
-
-        # Ouvrir un menu déroulant
-        click_element(role="menuitem", name="Mon compte")
+        click_element(index=3)  # Clique sur le 4ème élément affiché
     """
-    print("enter click element tool")
+
     page = runtime.context["page"]
 
-    async def perform_click():
-        locator = page.get_by_role(role, name=name).first
-        await locator.click()
-        return f"✅ Clic effectué avec succès sur {role} '{name}'"
+    # 🔥 même logique que ton extractor → cohérence parfaite
+    locator = page.locator("button, a, input, [role]")
 
+    count = await locator.count()
+
+    # ❌ sécurité index
+    if index < 0 or index >= count:
+        result = f"❌ Index {index} invalide (max: {count-1})"
+        snapshot = runtime.state.get("page", "Page inconnue")
+
+        return Command(update={
+            "messages": [ToolMessage(
+                content=f"{result}\n\nPage:\n{snapshot}",
+                tool_call_id=tool_call_id,
+            )]
+        })
+
+    element = locator.nth(index)
+
+    # 🔍 debug info (très utile pour LLM + logs)
     try:
-        async with page.expect_navigation(wait_until="load", timeout=10000):
-            result_msg = await perform_click()
+        tag = await element.evaluate("el => el.tagName")
+        el_id = await element.get_attribute("id")
+        text = await element.inner_text()
+    except:
+        tag, el_id, text = "?", "", ""
+
+    # ❌ visibilité
+    try:
+        visible = await element.is_visible()
+        if not visible:
+            result = f"❌ Élément index {index} non visible"
+            snapshot = runtime.state.get("page", "Page inconnue")
+
+            return Command(update={
+                "messages": [ToolMessage(
+                    content=f"{result}\n\nPage:\n{snapshot}",
+                    tool_call_id=tool_call_id,
+                )]
+            })
+    except:
+        pass
+
+    # 🚀 clic avec gestion navigation
+    try:
+        async with page.expect_navigation(wait_until="load", timeout=5000):
+            await element.click()
+        result = f"✅ Click (nav) sur index {index} ({tag} id={el_id})"
+
     except Exception:
         try:
-            result_msg = await perform_click()
+            await element.click()
+            result = f"✅ Click (no-nav) sur index {index} ({tag} id={el_id})"
         except Exception as e:
-            result_msg = f"❌ Impossible de cliquer sur {role} '{name}' ou timeout mais click peut-être réussi : {str(e)}"
+            result = f"❌ Erreur click index {index}: {str(e)}"
 
-    new_snapshot = await get_aria_snapshot(page)
+    # 🔄 nouvelle page
+    snapshot = runtime.state.get("page", "Page inconnue")
+
     return Command(update={
         "messages": [ToolMessage(
-            content=f"{result_msg}\nNouvelle page au format Markdown :\n{new_snapshot}",
+            content=f"{result}\n\nPage:\n{snapshot}",
             tool_call_id=tool_call_id,
         )]
     })
-
 
 @tool
 async def fill_text_field(
     runtime: ToolRuntime[Context],
     tool_call_id: Annotated[str, InjectedToolCallId],
+    index: int,
     identifier: str,
-    role: str = "textbox",
-    name: Optional[str] = None,
 ) -> Command:
     """
-    Remplit un champ de saisie avec une valeur confidentielle récupérée depuis le contexte sécurisé de l'agent, en ciblant le champ par son rôle ARIA et son nom d'accessibilité.
+    Remplit un champ de saisie en utilisant un ciblage hybride :
+    - Index issu du snapshot (prioritaire)
+    - Fallback DOM intelligent
 
-    ⚠️  SÉCURITÉ — RÈGLE ABSOLUE :
-        Ne jamais transmettre la valeur réelle d'un secret (mot de passe, e-mail…).
-        Passer uniquement l'identifiant symbolique correspondant à la clé de
-        credentials stockée dans le contexte de l'agent.
+    🔐 RÉCUPÉRATION DES SECRETS :
+        Les credentials sont chargés depuis le fichier `.env`
+        via les variables d'environnement.
 
-    Identifiants symboliques acceptés :
-        - "EMAIL"      → adresse e-mail de connexion
-        - "PASSWORD"   → mot de passe actuel
-        - "NEW_EMAIL"  → nouvelle adresse e-mail (changement de compte)
+        Clés attendues :
+            - EMAIL
+            - PASSWORD
+            - NEW_EMAIL
+
+    ⚠️ SÉCURITÉ :
+        Aucune valeur réelle n'est exposée au LLM.
+
+    STRATÉGIE :
+
+    1. 🎯 Index → correspond directement au snapshot
+    2. 🔁 Fallback DOM :
+        - input[type=email]
+        - input[type=password]
+        - autres heuristiques
 
     Args:
-        identifier (str): Clé symbolique du secret à injecter (ex. : "EMAIL",
-                        "PASSWORD", "NEW_EMAIL"). Insensible à la casse.
-        role (str):       Rôle ARIA du champ cible (défaut : "textbox").
-                        Peut être "searchbox", "spinbutton", etc.
-        name (str | None): Nom d'accessibilité du champ, correspondant à son
-                        libellé ou placeholder dans l'instantané ARIA
-                        (ex. : "Adresse e-mail", "Mot de passe").
-                        Si None, le premier champ du rôle donné est ciblé.
+        index (int): Index du champ dans le snapshot
+        identifier (str): "EMAIL", "PASSWORD", "NEW_EMAIL"
 
     Returns:
-        Command: Objet de mise à jour contenant un ToolMessage avec :
-            - ✅ Confirmation de remplissage réussi avec l'identifiant et le champ ciblé.
-            - ❌ Message d'erreur détaillé en cas d'échec de localisation ou de saisie.
-            - Un nouvel instantané ARIA de la page après le remplissage.
-
-    Examples:
-        # Remplir le champ e-mail
-        fill_text_field(identifier="EMAIL", role="textbox", name="Adresse e-mail")
-
-        # Remplir le champ mot de passe
-        fill_text_field(identifier="PASSWORD", role="textbox", name="Mot de passe")
-
-        # Remplir un champ de recherche sans nom précis
-        fill_text_field(identifier="EMAIL", role="searchbox")
-
-        # Mettre à jour avec une nouvelle adresse e-mail
-        fill_text_field(identifier="NEW_EMAIL", role="textbox", name="Nouvel e-mail")
+        Command avec résultat + nouveau snapshot
     """
-    page = runtime.context['page']
-    value = runtime.context.get('credentials', {}).get(identifier.lower(), "")
+
+    page = runtime.context["page"]
+
+    # 🔐 1. Lecture depuis .env
+    value = os.getenv(identifier.upper())
+
+    if not value:
+        return Command(update={
+            "messages": [ToolMessage(
+                content=f"❌ Variable d'environnement '{identifier}' introuvable dans .env",
+                tool_call_id=tool_call_id,
+            )]
+        })
 
     try:
-        locator = page.get_by_role(role, name=name).first
-        await locator.fill(value)
-        response = f"✅ {identifier} saisi dans le {role} '{name}'"
-    except Exception as e:
-        response = f"❌ Échec de la saisie de {identifier}: {str(e)}"
+        # 🎯 2. Ciblage principal via index
+        elements = await page.locator("input, textarea, [contenteditable=true]").all()
 
-    new_snapshot = await get_aria_snapshot(page)
+        if index < len(elements):
+            await elements[index].fill(value)
+            result = f"✅ {identifier} rempli via index {index}"
+        else:
+            raise Exception("Index hors limite")
+
+    except Exception as e:
+        # 🔁 3. Fallback intelligent
+        try:
+            locator = None
+
+            if identifier.upper() == "EMAIL":
+                locator = page.locator("input[type='email']").first
+
+            elif identifier.upper() == "PASSWORD":
+                locator = page.locator("input[type='password']").first
+
+            elif identifier.upper() == "NEW_EMAIL":
+                locator = page.locator("input[type='email']").nth(1)
+
+            if locator and await locator.count() > 0:
+                await locator.fill(value)
+                result = f"✅ {identifier} rempli via fallback DOM"
+
+            else:
+                raise Exception("Aucun champ trouvé")
+
+        except Exception as fallback_error:
+            result = f"❌ Erreur: {str(e)} | Fallback: {str(fallback_error)}"
+
+    # 📄 4. Nouveau snapshot
+    snapshot = runtime.state.get("page", "Page inconnue")
+
     return Command(update={
         "messages": [ToolMessage(
-            content=f"{response}\nPage au format Markdown :\n{new_snapshot}",
+            content=f"{result}\n\nPage:\n{snapshot}",
             tool_call_id=tool_call_id,
         )]
     })
-
 
 def get_tools() -> list:
     return [
