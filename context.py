@@ -16,4 +16,6 @@ from playwright.async_api import Page
 
 @dataclass
 class ContextSchema:
+    website_name: str
     page: Optional[Page] = field(default=None, init=False)
+    llm: str = "mistral-small-latest"

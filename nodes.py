@@ -15,14 +15,17 @@ summary is appended to graph state.
 from pathlib import Path
 
 from langchain_core.messages import AIMessage, HumanMessage
+from langchain.chat_models import init_chat_model
 from langgraph.errors import GraphInterrupt
 from langgraph.runtime import Runtime
 
 from agent.agent import create_email_agent
 from agent.context import Context
 from agent.tools import get_page_representation
+from models.llm import URLSelection
 from state import State
 from context import ContextSchema
+from search_engine import search_engine
 
 
 # ── Config ────────────────────────────────────────────────────────────────────
@@ -102,16 +105,21 @@ async def invoke_with_retry(
 
 # ── Non-ReAct nodes ───────────────────────────────────────────────────────────
 
-def find_url(state: State) -> State:
+def find_url(state: State, runtime: Runtime[ContextSchema]) -> State:
     """
     Use the search_engine module to discover the website URL.
     Only reached when `initial_url` is missing from state.
     Writes `initial_url` back to state.
     """
-    website_name = state.get("website_name", "")
-    # url = search_engine.search(query=website_name)
-    return {"initial_url": "url"}
-
+    query = runtime.context.website_name
+    search_results = search_engine.search(query=query)
+    print(search_results)
+    
+    llm_name = runtime.context.llm
+    model = init_chat_model(llm_name).with_structured_output(URLSelection)
+    prompt = f"Given the website name '{query}', pick the most likely official homepage URL from this list: {search_results}. Return the URL in a JSON format without any other text or explanation.\n\nExample output:\n{{\"url\": \"https://www.example.com/\"}}"
+    response = model.invoke([HumanMessage(content=prompt)])
+    return {"initial_url": response.url}
 
 async def init_page(state: State, runtime: Runtime[ContextSchema]) -> State:
     """

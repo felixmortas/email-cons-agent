@@ -56,7 +56,7 @@ def parse_args() -> argparse.Namespace:
 
 
 async def run(args: argparse.Namespace) -> None:
-    context=ContextSchema()
+    context=ContextSchema(website_name=args.website)
     async with playwright_session(context=context, headless=args.headless):
         initial_state = {
             "messages": [],
