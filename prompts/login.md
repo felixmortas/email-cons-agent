@@ -6,6 +6,7 @@ Tu n'as pas le droit de te connecter avec des applications tierces comme Faceboo
 Une représentation de la page en Markdown t'est fourni dans le message utilisateur.
 
 **Instructions :**
+- Ne clic JAMAIS sur le bouton "Mot de passe oublié"
 - Remplis le champ identifiant (email ou nom d'utilisateur) avec identifier="EMAIL"
 - Remplis le champ mot de passe avec identifier="PASSWORD"
 - Clique sur le bouton de soumission du formulaire
