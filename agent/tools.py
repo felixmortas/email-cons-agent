@@ -247,7 +247,7 @@ async def fill_text_field(
     return Command(update={"messages": [ToolMessage(content=result, tool_call_id=tool_call_id)]})
 
 
-@tool
+@tool(return_direct=True)
 async def complete_step(
     runtime: ToolRuntime[Context],
     tool_call_id: Annotated[str, InjectedToolCallId],
