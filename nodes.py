@@ -14,7 +14,7 @@ summary is appended to graph state.
 
 from pathlib import Path
 
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langchain.chat_models import init_chat_model
 from langgraph.errors import GraphInterrupt
 from langgraph.runtime import Runtime
@@ -51,8 +51,8 @@ async def invoke_with_retry(
     """
     Invoke a ReAct agent up to `max_retries` times.
 
-    The agent is considered successful when its last message starts with ✅.
-    On every ❌ response the agent is recreated from scratch (fresh system
+    The agent is considered successful when its last message is a ToolMessage from `complete_step` tool.
+    When AIMessage is the last message of the conversation, the agent is recreated from scratch (fresh system
     prompt, fresh ARIA snapshot) and retried.
 
     Args:
@@ -85,10 +85,13 @@ async def invoke_with_retry(
         inputs = {"messages": [HumanMessage("Go !")]}
 
         result = await agent.ainvoke(inputs, context=context)
-        last_content = result["messages"][-1].content
+        messages = result["messages"]
+        last_content = messages[-1].content
 
-        if last_content.startswith("✅"):
-            return last_content
+        for message in reversed(messages):
+            if isinstance(message, ToolMessage):
+                if message.name == "complete_step":
+                    return last_content
 
         print(
             f"[{function_name}] Attempt {attempt}/{max_retries} failed: "
