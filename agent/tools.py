@@ -5,71 +5,123 @@ from langgraph.types import Command
 from langchain.tools import InjectedToolCallId, tool, ToolRuntime
 from agent.context import Context
 
-async def extract_interactive_elements(page):
-    elements = await page.evaluate("""
+
+# ── DOM injection + snapshot ─────────────────────────────────────────────────
+
+async def get_page_representation(page) -> str:
+    """
+    Injects a `data-agent-index` attribute onto every visible interactive element
+    and returns a textual representation of the page.
+
+    Strategy:
+    - We work entirely on the JavaScript side using a single `page.evaluate` call to
+      ensure that the index injected into the DOM is exactly the same as the one displayed
+      in the snapshot—there is no possibility of divergence.
+    - We filter out invisible elements (offsetParent == null, display:none,
+      visibility:hidden) to prevent the agent from clicking on elements
+      that are hidden or off-screen.
+    - Elements without a name/id/type are kept in the DOM (so that
+      data-agent-index remains consistent) but marked [no-name] in the snapshot.
+    """
+    snapshot: list[dict] = await page.evaluate("""
     () => {
-        const roles = [
-            "button", "link", "textbox", "checkbox", "radio"
-        ];
+        const SELECTOR = "button, a, input, textarea, select, [role='button'], [role='link'], [role='textbox'], [role='checkbox'], [role='radio'], [role='menuitem'], [role='option'], [contenteditable='true']";
+
+        function isVisible(el) {
+            const style = window.getComputedStyle(el);
+            if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') return false;
+            const rect = el.getBoundingClientRect();
+            return rect.width > 0 && rect.height > 0;
+        }
 
         function getRole(el) {
-            return el.getAttribute("role") || el.tagName.toLowerCase();
+            const ariaRole = el.getAttribute("role");
+            if (ariaRole) return ariaRole;
+            const tag = el.tagName.toLowerCase();
+            if (tag === "input") return el.type || "input";
+            return tag;
         }
 
         function getName(el) {
             return (
-                el.innerText ||
                 el.getAttribute("aria-label") ||
+                el.getAttribute("placeholder") ||
+                el.getAttribute("title") ||
                 el.getAttribute("alt") ||
+                el.innerText ||
                 ""
-            ).trim();
+            ).trim().slice(0, 80); // Truncate long labels
         }
 
-        return Array.from(document.querySelectorAll("button, a, input, [role]"))
-            .map(el => {
-                return {
-                    role: getRole(el),
-                    name: getName(el),
-                    id: el.id || "",
-                    class: el.className || "",
-                    type: el.type || "",
-                };
+        // 1. Collect all matching elements
+        const allElements = Array.from(document.querySelectorAll(SELECTOR));
+
+        // 2. Remove previous agent indexes to stay idempotent
+        allElements.forEach(el => el.removeAttribute("data-agent-index"));
+
+        // 3. Filter visible, assign index, build snapshot
+        const snapshot = [];
+        let agentIndex = 0;
+
+        for (const el of allElements) {
+            if (!isVisible(el)) continue;
+                                               
+            const name = getName(el);
+            const id   = el.id || "";
+            const type = el.type || "";
+
+            // Ignore the elements without name, id, nor type
+            if (!name && !id && !type) continue;                       
+
+            // Anchor the index directly in the DOM
+            el.setAttribute("data-agent-index", String(agentIndex));
+
+            snapshot.push({
+                index: agentIndex,
+                role:  getRole(el),
+                name:  name || "[no-name]",
+                id,
+                type,
             });
+
+            agentIndex++;
+        }
+
+        return snapshot;
     }
     """)
-    return elements
 
-async def format_elements(elements):
     lines = []
-    display_index = 0  # Counter for valid elements
-
-    for el in elements:
-        name = el["name"]
-        element_id = el["id"]
-        element_type = el["type"]
-
-        # Filter: Skip elements that have no name, no id, and no type
-        if not name and not element_id and not element_type:
-            continue
-
+    for el in snapshot:
         attrs = []
-        if element_id:
-            attrs.append(f"id={element_id}")
-        if element_type:
-            attrs.append(f"type={element_type}")
-
+        if el["id"]:
+            attrs.append(f"id={el['id']}")
+        if el["type"]:
+            attrs.append(f"type={el['type']}")
         attr_str = f" [{' '.join(attrs)}]" if attrs else ""
-        display_name = name if name else "[no-name]"
-
-        # Use the display_index and then increment it
-        lines.append(f"- [{display_index}] {el['role']}: {display_name}{attr_str}")
-        display_index += 1
+        lines.append(f"- [{el['index']}] {el['role']}: {el['name']}{attr_str}")
 
     return "\n".join(lines)
 
-async def get_page_representation(page):
-    elements = await extract_interactive_elements(page)
-    return await format_elements(elements)
+
+# ── Shared locator helper ─────────────────────────────────────────────────────
+
+async def _locate_by_agent_index(page, index: int):
+    """
+    Returns the Playwright Locator corresponding to `data-agent-index=<index>`.
+    Raise a `ValueError` if the element cannot be found (the DOM has changed since
+    the snapshot → the agent must refresh its view).
+    """
+    locator = page.locator(f"[data-agent-index='{index}']")
+    count = await locator.count()
+    if count == 0:
+        raise ValueError(
+            f"Aucun élément avec data-agent-index={index}. "
+            "Le DOM a probablement changé depuis le dernier snapshot. "
+            "Rafraîchis le snapshot avant de réessayer."
+        )
+    return locator.first
+
 
 # ── LangChain Tools ──────────────────────────────────────────────────────────
 
@@ -80,90 +132,63 @@ async def click_element(
     index: int,
 ) -> Command:
     """
-    Clique sur un élément interactif en utilisant son INDEX tel qu'affiché dans la représentation actuelle de la page.
+    Clique sur un élément interactif en utilisant son INDEX tel qu'affiché
+    dans la représentation actuelle de la page.
 
-    ⚠️ IMPORTANT :
-    - L'index correspond EXACTEMENT à celui affiché dans la liste des éléments interactifs.
-    - Toujours choisir l'index le plus pertinent selon le contexte utilisateur.
-
-    L'index permet de sélectionner des éléments même lorsqu'ils n'ont :
-    - pas de texte
-    - pas de nom accessible (ex: boutons icône comme "account")
+    L'index est garanti stable : il est ancré directement dans le DOM via
+    l'attribut `data-agent-index` au moment où le snapshot est généré.
+    Il n'y a donc aucun risque de décalage entre ce que tu vois et ce qui
+    est cliqué.
 
     Args:
-        index (int): Position de l'élément dans la liste affichée (ex: [0], [1], [2], ...)
+        index (int): Index de l'élément tel qu'affiché dans le snapshot.
 
     Returns:
-        Command contenant :
-        - Résultat du clic (succès ou erreur)
-        - Nouvelle représentation de la page
+        Résultat du clic (succès ou erreur).
 
     Examples:
-        click_element(index=3)  # Clique sur le 4ème élément affiché
+        click_element(index=3)  # Clique sur l'élément [3] du snapshot
     """
-
     page = runtime.context["page"]
 
-    # 🔥 même logique que ton extractor → cohérence parfaite
-    locator = page.locator("button, a, input, [role]")
-
-    count = await locator.count()
-
-    # ❌ sécurité index
-    if index < 0 or index >= count:
-        result = f"❌ Index {index} invalide (max: {count-1})"
-
-        return Command(update={
-            "messages": [ToolMessage(
-                content=result,
-                tool_call_id=tool_call_id,
-            )]
-        })
-
-    element = locator.nth(index)
-
-    # 🔍 debug info (très utile pour LLM + logs)
     try:
-        tag = await element.evaluate("el => el.tagName")
-        el_id = await element.get_attribute("id")
-        text = await element.inner_text()
-    except:
+        element = await _locate_by_agent_index(page, index)
+    except ValueError as e:
+        return Command(update={"messages": [ToolMessage(content=f"❌ {e}", tool_call_id=tool_call_id)]})
+
+    # Debug info
+    try:
+        tag   = await element.evaluate("el => el.tagName")
+        el_id = await element.get_attribute("id") or ""
+        text  = (await element.inner_text()).strip()[:60]
+    except Exception:
         tag, el_id, text = "?", "", ""
 
-    # ❌ visibilité
+    # Visibility check
     try:
-        visible = await element.is_visible()
-        if not visible:
-            result = f"❌ Élément index {index} non visible"
-
-            return Command(update={
-                "messages": [ToolMessage(
-                    content=result,
-                    tool_call_id=tool_call_id,
-                )]
-            })
-    except:
+        if not await element.is_visible():
+            return Command(update={"messages": [ToolMessage(
+                content=f"❌ Élément [{index}] non visible ({tag} id={el_id})",
+                tool_call_id=tool_call_id,
+            )]})
+    except Exception:
         pass
 
-    # 🚀 clic avec gestion navigation
+    # Click with navigation handling
     try:
-        async with page.expect_navigation(wait_until="load", timeout=5000):
+        async with page.expect_navigation(wait_until="load", timeout=8000):
             await element.click()
-        result = f"✅ Click (nav) sur index {index} ({tag} id={el_id})"
-
+        result = f"✅ Click (nav) [{index}] {tag} id={el_id} « {text} »"
     except Exception:
         try:
             await element.click()
-            result = f"✅ Click (no-nav) sur index {index} ({tag} id={el_id})"
+            await page.wait_for_timeout(6000)  # Let the DOM stabilize
+            result = f"✅ Click (no-nav) [{index}] {tag} id={el_id} « {text} »"
         except Exception as e:
-            result = f"❌ Erreur click index {index}: {str(e)}"
+            result = f"❌ Erreur click [{index}]: {e}"
 
-    return Command(update={
-        "messages": [ToolMessage(
-            content=result,
-            tool_call_id=tool_call_id,
-        )]
-    })
+    return Command(update={"messages": [ToolMessage(content=result, tool_call_id=tool_call_id)]})
+
 
 @tool
 async def fill_text_field(
@@ -173,92 +198,54 @@ async def fill_text_field(
     identifier: str,
 ) -> Command:
     """
-    Remplit un champ de saisie en utilisant un ciblage hybride :
-    - Index issu du snapshot (prioritaire)
-    - Fallback DOM intelligent
+    Remplit un champ de saisie (input, textarea, contenteditable) en ciblant
+    l'élément via son index stable (`data-agent-index`).
 
     🔐 RÉCUPÉRATION DES SECRETS :
-        Les credentials sont chargés depuis le fichier `.env`
-        via les variables d'environnement.
+        Les credentials sont lus depuis les variables d'environnement.
+        Clés disponibles : EMAIL, PASSWORD, NEW_EMAIL
 
-        Clés attendues :
-            - EMAIL
-            - PASSWORD
-            - NEW_EMAIL
-
-    ⚠️ SÉCURITÉ :
-        Aucune valeur réelle n'est exposée au LLM.
-
-    STRATÉGIE :
-
-    1. 🎯 Index → correspond directement au snapshot
-    2. 🔁 Fallback DOM :
-        - input[type=email]
-        - input[type=password]
-        - autres heuristiques
+    ⚠️ SÉCURITÉ : Aucune valeur réelle n'est exposée dans ce message.
 
     Args:
-        index (int): Index du champ dans le snapshot
-        identifier (str): "EMAIL", "PASSWORD", "NEW_EMAIL"
+        index (int): Index du champ tel qu'affiché dans le snapshot.
+        identifier (str): Nom de la variable d'environnement à utiliser.
+                          Valeurs acceptées : "EMAIL", "PASSWORD", "NEW_EMAIL"
 
     Returns:
-        Command avec résultat + nouveau snapshot
-    """
+        Résultat du remplissage (succès ou erreur).
 
+    Examples:
+        fill_text_field(index=1, identifier="EMAIL")
+        fill_text_field(index=2, identifier="PASSWORD")
+    """
     page = runtime.context["page"]
 
-    # 🔐 1. Lecture depuis .env
+    # 1. Resolve secret
     value = os.getenv(identifier.upper())
-
     if not value:
-        return Command(update={
-            "messages": [ToolMessage(
-                content=f"❌ Variable d'environnement '{identifier}' introuvable dans .env",
-                tool_call_id=tool_call_id,
-            )]
-        })
-
-    try:
-        # 🎯 2. Ciblage principal via index
-        elements = await page.locator("input, textarea, [contenteditable=true]").all()
-
-        if index < len(elements):
-            await elements[index].fill(value)
-            result = f"✅ {identifier} rempli via index {index}"
-        else:
-            raise Exception("Index hors limite")
-
-    except Exception as e:
-        # 🔁 3. Fallback intelligent
-        try:
-            locator = None
-
-            if identifier.upper() == "EMAIL":
-                locator = page.locator("input[type='email']").first
-
-            elif identifier.upper() == "PASSWORD":
-                locator = page.locator("input[type='password']").first
-
-            elif identifier.upper() == "NEW_EMAIL":
-                locator = page.locator("input[type='email']").nth(1)
-
-            if locator and await locator.count() > 0:
-                await locator.fill(value)
-                result = f"✅ {identifier} rempli via fallback DOM"
-
-            else:
-                raise Exception("Aucun champ trouvé")
-
-        except Exception as fallback_error:
-            result = f"❌ Erreur: {str(e)} | Fallback: {str(fallback_error)}"
-
-
-    return Command(update={
-        "messages": [ToolMessage(
-            content=result,
+        return Command(update={"messages": [ToolMessage(
+            content=f"❌ Variable '{identifier}' introuvable dans .env",
             tool_call_id=tool_call_id,
-        )]
-    })
+        )]})
+
+    # 2. Locate by stable agent index
+    try:
+        element = await _locate_by_agent_index(page, index)
+    except ValueError as e:
+        return Command(update={"messages": [ToolMessage(content=f"❌ {e}", tool_call_id=tool_call_id)]})
+
+    # 3. Fill
+    try:
+        await element.click()              # Focus the field first
+        await element.fill(value)
+        await page.wait_for_timeout(300)   # Let any JS validation settle
+        result = f"✅ {identifier} rempli via data-agent-index={index}"
+    except Exception as e:
+        result = f"❌ Erreur fill [{index}] {identifier}: {e}"
+
+    return Command(update={"messages": [ToolMessage(content=result, tool_call_id=tool_call_id)]})
+
 
 @tool
 async def complete_step(
@@ -271,17 +258,15 @@ async def complete_step(
     """
     page = runtime.context["page"]
     current_url = page.url
-    
-    return Command(
-        update={
-            # Met à jour le state du Graph parent
-            "fallback_url": current_url,
-            "messages": [ToolMessage(
-                content=f"✅ Étape sauvegardée à l'URL : {current_url}",
-                tool_call_id=tool_call_id,
-            )]
-        }
-    )
+
+    return Command(update={
+        "fallback_url": current_url,
+        "messages": [ToolMessage(
+            content=f"✅ Étape sauvegardée à l'URL : {current_url}",
+            tool_call_id=tool_call_id,
+        )],
+    })
+
 
 def get_tools() -> list:
     return [

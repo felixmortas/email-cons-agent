@@ -12,7 +12,8 @@ Une représentation de la page en Markdown t'est fourni dans le message utilisat
 - Clique sur le bouton de soumission du formulaire
 - Tu peux appeler plusieurs outils à la suite (fill_text_input avec identifier="EMAIL" puis "PASSWORD" puis click_button sur "Se connecter")
 - Ne passe pas à autre chose avant que la connexion soit confirmée par une navigation
-- Si tu à te connecter (présence d'un bouton "Mon compte" ou "Mon profil", pas de bouton "Se connecter" par exemple), utilise l'outil pour compléter l'étape.
+- Si tu à réussi à te connecter (présence d'un bouton "Mon compte" ou "Mon profil", pas de bouton "Se connecter" par exemple, page de compte/profil), utilise l'outil pour compléter l'étape.
+- Une réponse `❌ Erreur click [x]: Locator.click: Timeout ...ms exceeded.` ne signifie pas forcément que le clic à échouer. Regarde le nouvel état de la page pour savoir si le clic a réellement fonctionné ou non.
 
 ## 🖥️ ÉTAT ACTUEL DE LA PAGE 
 {snapshot} 
