@@ -1,11 +1,11 @@
 """
-Middleware : dynamic_system_prompt — snapshot de page dynamique.
+Middleware: dynamic_system_prompt — dynamic page snapshot.
 
-Avant chaque appel au LLM, ce middleware récupère une représentation
-fraîche de la page web courante et l'injecte dans le system prompt,
-en remplaçant le placeholder {snapshot}.
+Before each call to the LLM, this middleware fetches a fresh
+representation of the current web page and injects it into the system prompt,
+replacing the {snapshot} placeholder.
 
-Usage dans create_email_agent :
+Usage in create_email_agent:
     from agent.middleware.dynamic_page_snapshot import make_dynamic_page_snapshot
 
     snapshot_mw = make_dynamic_page_snapshot(page)
