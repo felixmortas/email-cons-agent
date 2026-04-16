@@ -13,5 +13,5 @@ fallback = ModelFallbackMiddleware(
     "mistralai:mistral-small-latest",
     "google_genai:gemini-2.5-flash",
     "google_genai:gemini-2.5-flash-lite",
-    "google_genai:gemini-2.5-flash-lite-preview-09-2025",
+    # "google_genai:gemini-2.5-flash-lite-preview-09-2025",
 )
