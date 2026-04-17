@@ -1,0 +1,73 @@
+"""
+Utility functions and configuration for the email-change agent.
+Contains prompt loading, retry logic for ReAct agents, and shared constants.
+"""
+from pathlib import Path
+from langchain_core.messages import HumanMessage, ToolMessage
+from langgraph.errors import GraphInterrupt
+from agent.context import Context
+from state import AgentInputState
+
+# ── Configuration ────────────────────────────────────────────────────────────
+PROMPTS_DIR = Path(__file__).parent / "prompts"
+MAX_RETRIES = 3
+
+def load_prompt(filename: str) -> str:
+    """Read a system prompt markdown file from the prompts directory."""
+    return (PROMPTS_DIR / filename).read_text(encoding="utf-8")
+
+async def invoke_with_retry(
+    agent_factory,
+    page,
+    context: Context,
+    function_name: str,
+    input_data: AgentInputState,
+    max_retries: int = MAX_RETRIES,
+) -> str:
+    """
+    Invoke a ReAct agent up to `max_retries` times.
+    The agent is considered successful when its last message is a ToolMessage from the `complete_step` tool.
+    If an AIMessage is the last message, the agent is recreated from scratch (fresh system prompt & ARIA snapshot) and retried.
+
+    Args:
+        agent_factory: Zero-argument async callable that returns a compiled ReAct agent.
+        page: Playwright Page instance (used to refresh ARIA on retries).
+        context: Agent context forwarded to `ainvoke`.
+        function_name: Human-readable node name used in logging and error messages.
+        max_retries: Maximum number of attempts (default: MAX_RETRIES = 3).
+
+    Returns:
+        The final message content string (starting with ✅).
+
+    Raises:
+        GraphInterrupt: Raised after `max_retries` failed attempts. Halts the graph and surfaces the last error.
+    """
+    last_content = " "
+    fallback_url = input_data.get("fallback_url") or input_data.get("initial_url")
+
+    for attempt in range(1, max_retries + 1):
+        if attempt > 1:
+            print(f"[{function_name}] Retry {attempt}: Reset to {fallback_url}")
+            await page.goto(fallback_url, wait_until="load")
+
+        agent = agent_factory()
+        inputs = {"messages": [HumanMessage("Go !")]}
+        result = await agent.ainvoke(inputs, context=context)
+        messages = result["messages"]
+        last_content = messages[-1].content
+
+        for message in reversed(messages):
+            if isinstance(message, ToolMessage):
+                if message.name == "complete_step":
+                    return last_content
+
+        print(
+            f"[{function_name}] Attempt {attempt}/{max_retries} failed: "
+            f"{last_content}"
+        )
+
+    # All retries exhausted — halt the graph
+    raise GraphInterrupt(
+        f"[{function_name}] Failed after {max_retries} attempts. "
+        f"Last error: {last_content}"
+    )
