@@ -16,7 +16,7 @@ Usage in create_email_agent:
         ...
     )
 """
-
+import asyncio
 from langchain.agents.middleware import dynamic_prompt, ModelRequest
 
 from agent.tools import get_page_representation
@@ -35,6 +35,7 @@ def make_dynamic_page_snapshot(page):
         
         # 2. Get the fresh snapshot
         # Note: ensure 'page' is available in your closure from make_dynamic_page_snapshot
+        await asyncio.sleep(0.3)
         snapshot = await get_page_representation(page)
 
         # 3. Return the combined string

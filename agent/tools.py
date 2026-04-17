@@ -23,9 +23,12 @@ async def get_page_representation(page) -> str:
     - Elements without a name/id/type are kept in the DOM (so that
       data-agent-index remains consistent) but marked [no-name] in the snapshot.
     """
+    # 1. On attend d'abord une micro-stabilité avant même de calculer
+    await _wait_for_dom_stable(page, timeout_ms=1000)
+
     snapshot: list[dict] = await page.evaluate("""
     () => {
-        const SELECTOR = "button, a, input, textarea, select, [role='button'], [role='link'], [role='textbox'], [role='checkbox'], [role='radio'], [role='menuitem'], [role='option'], [contenteditable='true']";
+        const SELECTOR = "button, a, input, textarea, select, [role='button'], [role='link'], [role='textbox'], [role='checkbox'], [role='radio'], [role='menuitem'], [role='menu'], [role='menubar'], [role='option'], [role='dialog'], [role='listbox'], [contenteditable='true']";
 
         function isVisible(el) {
             const style = window.getComputedStyle(el);
@@ -43,17 +46,23 @@ async def get_page_representation(page) -> str:
         }
 
         function getName(el) {
-            return (
-                el.getAttribute("aria-label") ||
-                el.getAttribute("placeholder") ||
-                el.getAttribute("title") ||
-                el.getAttribute("alt") ||
-                el.innerText ||
-                ""
-            ).trim().slice(0, 80); // Truncate long labels
+            // Priorité aux textes visibles pour le LLM
+            let text = "";
+            if (el.tagName.toLowerCase() === 'input' && el.placeholder) {
+                text = el.placeholder;
+            } else {
+                // On récupère le texte, ou l'aria-label, ou le titre de l'image interne
+                text = el.innerText || el.getAttribute("aria-label") || el.getAttribute("title") || "";
+                
+                // Si pas de texte, on cherche dans les images enfants (cas de ton bouton profil)
+                if (!text.trim()) {
+                    const img = el.querySelector('img');
+                    if (img) text = img.getAttribute('alt') || img.getAttribute('title') || "";
+                }
+            }
+            return text.trim().replace(/\\s+/g, ' ').slice(0, 100);
         }
 
-        // 1. Collect all matching elements
         const allElements = Array.from(document.querySelectorAll(SELECTOR));
 
         // 2. Remove previous agent indexes to stay idempotent
@@ -68,6 +77,7 @@ async def get_page_representation(page) -> str:
                                                
             const name = getName(el);
             const id   = el.id || "";
+            const role = el.getAttribute("role") || el.tagName.toLowerCase();
             const type = el.type || "";
 
             // Ignore the elements without name, id, nor type
@@ -86,25 +96,24 @@ async def get_page_representation(page) -> str:
 
             agentIndex++;
         }
-
         return snapshot;
     }
     """)
 
+    # Formatage Markdown pour le LLM
     lines = []
     for el in snapshot:
+        info = f"[{el['index']}] {el['role']}: \"{el['name']}\""
         attrs = []
-        if el["id"]:
-            attrs.append(f"id={el['id']}")
-        if el["type"]:
-            attrs.append(f"type={el['type']}")
-        attr_str = f" [{' '.join(attrs)}]" if attrs else ""
-        lines.append(f"- [{el['index']}] {el['role']}: {el['name']}{attr_str}")
+        if el["id"]: attrs.append(f"id={el['id']}")
+        if el["type"]: attrs.append(f"type={el['type']}")
+        
+        attr_str = f" ({', '.join(attrs)})" if attrs else ""
+        lines.append(f"{info}{attr_str}")
 
     return "\n".join(lines)
 
-
-# ── Shared locator helper ─────────────────────────────────────────────────────
+# ── Shared helper ─────────────────────────────────────────────────────
 
 async def _locate_by_agent_index(page, index: int):
     """
@@ -117,10 +126,33 @@ async def _locate_by_agent_index(page, index: int):
     if count == 0:
         raise ValueError(
             f"Aucun élément avec data-agent-index={index}. "
-            "Le DOM a probablement changé depuis le dernier snapshot. "
-            "Rafraîchis le snapshot avant de réessayer."
+            "Le DOM a probablement changé depuis le dernier appel d'outil. "
+            "Regarde le nouveau DOM et réessaye."
         )
     return locator.first
+
+async def _wait_for_dom_stable(page, timeout_ms: int = 3000):
+    """
+    Attend que le DOM ne mute plus pendant 300ms consécutives.
+    Robuste pour React, Vue, et tout framework qui batch ses updates.
+    """
+    await page.evaluate("""
+        (timeout) => new Promise((resolve) => {
+            let timer;
+            const observer = new MutationObserver(() => {
+                clearTimeout(timer);
+                timer = setTimeout(() => {
+                    observer.disconnect();
+                    resolve();
+                }, 300);  // 300ms sans mutation = stable
+            });
+            observer.observe(document.body, {
+                childList: true, subtree: true, attributes: true
+            });
+            // Fallback si rien ne mute du tout
+            setTimeout(() => { observer.disconnect(); resolve(); }, timeout);
+        })
+    """, timeout_ms)
 
 
 # ── LangChain Tools ──────────────────────────────────────────────────────────
@@ -161,8 +193,10 @@ async def click_element(
         tag   = await element.evaluate("el => el.tagName")
         el_id = await element.get_attribute("id") or ""
         text  = (await element.inner_text()).strip()[:60]
+        # ✅ Lire aria-controls AVANT le clic
+        aria_controls = await element.get_attribute("aria-controls")
     except Exception:
-        tag, el_id, text = "?", "", ""
+        tag, el_id, text, aria_controls = "?", "", "", None
 
     # Visibility check
     try:
@@ -239,7 +273,7 @@ async def fill_text_field(
     try:
         await element.click()              # Focus the field first
         await element.fill(value)
-        await page.wait_for_timeout(300)   # Let any JS validation settle
+        await _wait_for_dom_stable(page, timeout_ms=3000)   # Let any JS validation settle
         result = f"✅ {identifier} rempli via data-agent-index={index}"
     except Exception as e:
         result = f"❌ Erreur fill [{index}] {identifier}: {e}"
