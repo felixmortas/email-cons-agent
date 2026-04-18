@@ -54,6 +54,8 @@ async def get_page_representation(page: Page) -> str:
     Returns:
         A formatted string snapshot of interactive elements.
     """
+    await wait_for_dom_stable(page, timeout_ms=3000)
+
     snapshot: list[dict] = await page.evaluate("""
         () => {
             const SELECTOR = "button, a, input, textarea, select, [role='button'], [role='link'], [role='textbox'], [role='checkbox'], [role='radio'], [role='menuitem'], [role='menu'], [role='menubar'], [role='option'], [role='dialog'], [role='listbox'], [contenteditable='true']";

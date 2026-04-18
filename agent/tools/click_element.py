@@ -9,7 +9,7 @@ from langchain.messages import ToolMessage
 from langgraph.types import Command
 from langchain.tools import InjectedToolCallId, tool, ToolRuntime
 from agent.context import Context
-from .page_utils import locate_by_agent_index
+from .page_utils import locate_by_agent_index, wait_for_dom_stable
 
 
 @tool
@@ -72,6 +72,7 @@ async def click_element(
         print("Try 1 : expect_navigation")
         async with page.expect_navigation(wait_until="load", timeout=8000):
             await element.click()
+        await wait_for_dom_stable(page, timeout_ms=3000)
         result = f"✅ Clic (nav) [{index}] {tag} id={el_id} « {text} »"
         print(result)
     except Exception as e1:
@@ -92,6 +93,7 @@ async def click_element(
                 await page.wait_for_timeout(300)
                 result = f"✅ Clic (élément disparu post-clic) [{index}] {tag} id={el_id} « {text} »"
                 print(result)
+                await wait_for_dom_stable(page, timeout_ms=3000)
 
             if result is None:
                 await element.click(timeout=5000)
@@ -110,6 +112,7 @@ async def click_element(
 
                 await page.wait_for_timeout(300)  # laisser les animations se terminer
                 result = f"✅ Clic (no-nav) [{index}] {tag} id={el_id} « {text} »"
+                await wait_for_dom_stable(page, timeout_ms=2000)
                 print(result)
 
         except Exception as e2:
