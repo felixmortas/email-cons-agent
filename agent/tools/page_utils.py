@@ -54,17 +54,15 @@ async def get_page_representation(page: Page) -> str:
     Returns:
         A formatted string snapshot of interactive elements.
     """
-    await wait_for_dom_stable(page, timeout_ms=1000)
-
     snapshot: list[dict] = await page.evaluate("""
         () => {
             const SELECTOR = "button, a, input, textarea, select, [role='button'], [role='link'], [role='textbox'], [role='checkbox'], [role='radio'], [role='menuitem'], [role='menu'], [role='menubar'], [role='option'], [role='dialog'], [role='listbox'], [contenteditable='true']";
 
             function isVisible(el) {
                 const style = window.getComputedStyle(el);
-                if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') return false;
+                if (style.display === 'none' || style.visibility === 'hidden') return false;
                 const rect = el.getBoundingClientRect();
-                return rect.width > 0 && rect.height > 0;
+                return rect.width > 0 || rect.height > 0 || el.getClientRects().length > 0;
             }
 
             function getRole(el) {
