@@ -46,6 +46,7 @@ async def init_page(state: State, runtime: Runtime[ContextSchema]) -> State:
     page = runtime.context.page
     url: str = state["initial_url"]
     await page.goto(url, wait_until="load")
+    await page.wait_for_timeout(10000)
     return {}
 
 # ── ReAct nodes ───────────────────────────────────────────────────────────────
