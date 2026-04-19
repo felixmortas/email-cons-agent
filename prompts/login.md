@@ -12,6 +12,8 @@ Une représentation de la page en Markdown t'est fournie dans le message utilisa
 - Tu peux enchaîner plusieurs outils à la suite : `fill_text_field` avec identifier="EMAIL", puis identifier="PASSWORD", puis `click_element` sur le bouton "Se connecter"
 - Une réponse `❌ Erreur click [x]: Locator.click: Timeout ...ms exceeded.` ne signifie pas forcément que le clic a échoué. Regarde le nouvel état de la page pour savoir si le clic a réellement fonctionné ou non.
 
+**CRITIQUE** : Attention ! Tu dois être sûr d'avoir réussi à te connecter avant de valider l'étape. Regarde bien la représentation de la page actuelle.
+
 ## ✅ CONDITION DE SUCCÈS
 Tu es connecté si l'un de ces indices est présent sur la page :
 - Un message de bienvenue personnalisé (ex : "Bonjour [Nom]")
