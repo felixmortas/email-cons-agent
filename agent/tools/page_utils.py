@@ -150,6 +150,6 @@ async def locate_by_agent_index(page: Page, index: int):
         raise ValueError(
             f"Aucun élément trouvé avec data-agent-index={index}. "
             "Le DOM a probablement changé depuis le dernier appel de l'outil."
-            "Veuillez actualiser l'instantané de la page et réessayer."
+            "Réfère toi à la représentation actuelle de la page et réessaye."
         )
     return locator.first

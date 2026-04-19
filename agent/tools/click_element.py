@@ -36,12 +36,10 @@ async def click_element(
     Examples:
         click_element(index=3)  # Clique sur l'élément [3] du snapshot
     """
-    print(f"Enter Click_element, index {index}")
     page = runtime.context["page"]
 
     try:
         element = await locate_by_agent_index(page, index)
-        print(element)
     except ValueError as e:
         return Command(update={"messages": [ToolMessage(content=f"❌ {e}", tool_call_id=tool_call_id)]})
 
@@ -64,59 +62,51 @@ async def click_element(
     except Exception:
         pass
 
+    # Snapshot DOM avant le clic
+    before = await page.evaluate("document.body.innerHTML.length")
+
+    # ── JUST ONE click ──────────────────────────────────────────────────────────
+    try:
+        await element.click(timeout=5000)
+    except Exception as e:
+        result = f"❌ Erreur de clic [{index}]: {type(e).__name__}: {e}"
+        return Command(update={"messages": [ToolMessage(content=result, tool_call_id=tool_call_id)]})
+
+    # ── See what happened after the click ─────────────────────────────
     result = None
 
-    # Click with navigation handling
-    # — Try 1 : clic avec navigation de page —
+    # Case 1: Page navigation triggered
     try:
-        print("Try 1 : expect_navigation")
-        async with page.expect_navigation(wait_until="load", timeout=8000):
-            await element.click()
+        await page.wait_for_load_state("load", timeout=8000)
+        # We check to make sure the URL has changed or that the DOM has completely changed
         await wait_for_dom_stable(page, timeout_ms=3000)
         result = f"✅ Clic (nav) [{index}] {tag} id={el_id} « {text} »"
-        print(result)
-    except Exception as e1:
-        print(f"Try 1 échoué ({type(e1).__name__}) → Try 2")
+    except Exception:
+        pass  # No navigation → continue
 
-    # — Try 2 : clic sans navigation (popup, toggle, etc.) —
+    # Case 2: DOM manipulation without navigation (menu, popup, toggle, etc.)
     if result is None:
         try:
-            print("Try 2 : clic simple + attente stabilité DOM")
-            before = await page.evaluate("document.body.innerHTML.length")
+            await page.wait_for_function(
+                f"document.body.innerHTML.length !== {before}",
+                timeout=2000,
+            )
+            await page.wait_for_timeout(300)  # Let the animations finish
+            await wait_for_dom_stable(page, timeout_ms=2000)
+            result = f"✅ Clic (dom-mutation) [{index}] {tag} id={el_id} « {text} »"
+        except Exception:
+            pass  # No mutations detected
 
-            # Re-localiser l'élément : il a pu être recréé dans le DOM
-            try:
-                element = await locate_by_agent_index(page, index)
-            except ValueError:
-                # L'élément a disparu (ex: le popup s'est fermé au Try 1 malgré l'erreur)
-                # Le clic a quand même fonctionné !
-                await page.wait_for_timeout(300)
-                result = f"✅ Clic (élément disparu post-clic) [{index}] {tag} id={el_id} « {text} »"
-                print(result)
-                await wait_for_dom_stable(page, timeout_ms=3000)
+    # Case 3: Element disappeared after the click (popup closed, item removed from the DOM, etc.)
+    if result is None:
+        try:
+            await locate_by_agent_index(page, index)
+        except ValueError:
+            result = f"✅ Clic (élément disparu post-clic) [{index}] {tag} id={el_id} « {text} »"
 
-            if result is None:
-                await element.click(timeout=5000)
-
-                # Attendre un changement DOM OU un délai fixe si rien ne change
-                try:
-                    await page.wait_for_function(
-                        f"document.body.innerHTML.length !== {before}",
-                        timeout=2000,
-                    )
-                    after = await page.evaluate("document.body.innerHTML.length")
-                    print(f"DOM changé : {before} → {after}")
-                except Exception:
-                    # Pas de changement DOM détecté : clic sur un élément statique (focus, etc.)
-                    print("Pas de changement DOM détecté, on considère le clic réussi")
-
-                await page.wait_for_timeout(300)  # laisser les animations se terminer
-                result = f"✅ Clic (no-nav) [{index}] {tag} id={el_id} « {text} »"
-                await wait_for_dom_stable(page, timeout_ms=2000)
-                print(result)
-
-        except Exception as e2:
-            result = f"❌ Erreur de clic [{index}]: {type(e2).__name__}: {e2}"
-            print(result)
+    # Case 4: Silent click (focus, aria-selected, standalone attribute…)
+    if result is None:
+        await page.wait_for_timeout(300)
+        result = f"✅ Clic (no-change) [{index}] {tag} id={el_id} « {text} »"
 
     return Command(update={"messages": [ToolMessage(content=result, tool_call_id=tool_call_id)]})
