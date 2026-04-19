@@ -30,7 +30,6 @@ def find_url(state: State, runtime: Runtime[ContextSchema]) -> State:
     """
     query = runtime.context.website_name
     search_results = search_engine.search(query=query)
-    print(search_results)
     llm_name = runtime.context.llm
     model = init_chat_model(llm_name).with_structured_output(URLSelection)
     prompt = f"Given the website name '{query}', pick the most likely official homepage URL from this list: {search_results}. Return the URL in a JSON format without any other text or explanation.\n\nExample output:\n{{\"url\": \"https://www.example.com/\"}}"
@@ -56,7 +55,6 @@ async def find_login_page(state: AgentInputState, runtime: Runtime[ContextSchema
     Retries up to MAX_RETRIES times on ❌. Halts graph on persistent failure.
     Returns a summary AIMessage appended to graph state messages.
     """
-    print("enter find_login_page")
     function_name = "find_login_page"
     system_prompt = load_prompt(f"{function_name}.md")
     page = runtime.context.page
@@ -75,7 +73,6 @@ async def login(state: State, runtime: Runtime[ContextSchema]) -> State:
     Retries up to MAX_RETRIES times on ❌. Halts graph on persistent failure.
     Returns a summary AIMessage.
     """
-    print("enter login")
     function_name = "login"
     system_prompt = load_prompt(f"{function_name}.md")
     page = runtime.context.page
@@ -94,7 +91,6 @@ async def open_email_settings(state: State, runtime: Runtime[ContextSchema]) -> 
     Retries up to MAX_RETRIES times on ❌. Halts graph on persistent failure.
     Returns a summary AIMessage.
     """
-    print("enter open_email_settings")
     function_name = "open_email_settings"
     system_prompt = load_prompt(f"{function_name}.md")
     page = runtime.context.page
@@ -113,7 +109,6 @@ async def change_email(state: State, runtime: Runtime[ContextSchema]) -> State:
     Retries up to MAX_RETRIES times on ❌. Halts graph on persistent failure.
     Returns a summary AIMessage.
     """
-    print("enter change_email")
     function_name = "change_email"
     system_prompt = load_prompt(f"{function_name}.md")
     page = runtime.context.page

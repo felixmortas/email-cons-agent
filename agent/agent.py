@@ -30,5 +30,5 @@ def create_email_agent(system_prompt, page, model_name: str = "mistral-large-lat
         middleware=[page_snapshot,
                     fallback],
         system_prompt=system_prompt,
-        debug=True
+        debug=False
     )
