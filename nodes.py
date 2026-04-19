@@ -18,7 +18,7 @@ from agent.context import Context
 from models.llm import URLSelection
 from state import State, AgentInputState
 from context import ContextSchema
-from search_engine import search_engine
+from services.search_engine import search_engine
 from nodes_utils import load_prompt, invoke_with_retry
 
 # ── Non-ReAct nodes ───────────────────────────────────────────────────────────

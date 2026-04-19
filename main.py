@@ -14,8 +14,8 @@ load_dotenv()
 
 from context import ContextSchema
 from graph import graph
-from langfuse_engine import langfuse_handler
-from playwright_session import playwright_session
+from services.langfuse_engine import langfuse_handler
+from services.playwright_session import playwright_session
 
 
 def parse_args() -> argparse.Namespace:
