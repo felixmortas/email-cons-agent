@@ -53,8 +53,6 @@ async def get_verification_code(
     try:
         website_name = runtime.context["website_name"]
         emails_list = outlook.get_recent_emails()
-        print("emails_list")
-        print(emails_list)
 
         if not emails_list:
             return Command(update={"messages": [ToolMessage(
@@ -79,12 +77,8 @@ async def get_verification_code(
 
     try:
         email_content = outlook.read_email(email_id)
-        print("email_content")
-        print(email_content)
 
         code = extract_verification_code(llm_name, email_content)
-        print("code")
-        print(code)
         
 
     except ValueError as e:
