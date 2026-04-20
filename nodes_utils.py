@@ -5,6 +5,7 @@ Contains prompt loading, retry logic for ReAct agents, and shared constants.
 from pathlib import Path
 from langchain_core.messages import HumanMessage, ToolMessage
 from langgraph.errors import GraphInterrupt
+from agent.agent import create_email_agent
 from agent.context import Context
 from state import AgentInputState
 
@@ -12,11 +13,11 @@ from state import AgentInputState
 PROMPTS_DIR = Path(__file__).parent / "prompts"
 MAX_RETRIES = 3
 
-def load_prompt(filename: str) -> str:
+def _load_prompt(filename: str) -> str:
     """Read a system prompt markdown file from the prompts directory."""
     return (PROMPTS_DIR / filename).read_text(encoding="utf-8")
 
-async def invoke_with_retry(
+async def _invoke_with_retry(
     agent_factory,
     page,
     context: Context,
@@ -71,3 +72,15 @@ async def invoke_with_retry(
         f"[{function_name}] Failed after {max_retries} attempts. "
         f"Last error: {last_content}"
     )
+
+async def create_and_invoke_agent_with_retry(state, runtime, function_name) -> str:
+    system_prompt = _load_prompt(f"{function_name}.md")
+    page = runtime.context.page
+    content = await _invoke_with_retry(
+        agent_factory=lambda: create_email_agent(system_prompt, page),
+        page=page,
+        context=Context(page=page, website_name=runtime.context.website_name, outlook_service=runtime.context.outlook_service, llm_name=runtime.context.llm),
+        function_name=function_name,
+        input_data=state,
+    )
+    return content

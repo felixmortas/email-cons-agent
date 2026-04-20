@@ -19,7 +19,7 @@ from models.llm import URLSelection
 from state import State, AgentInputState
 from context import ContextSchema
 from services.search_engine import search_engine
-from nodes_utils import load_prompt, invoke_with_retry
+from nodes_utils import create_and_invoke_agent_with_retry
 
 # ── Non-ReAct nodes ───────────────────────────────────────────────────────────
 def find_url(state: State, runtime: Runtime[ContextSchema]) -> State:
@@ -56,15 +56,8 @@ async def find_login_page(state: AgentInputState, runtime: Runtime[ContextSchema
     Returns a summary AIMessage appended to graph state messages.
     """
     function_name = "find_login_page"
-    system_prompt = load_prompt(f"{function_name}.md")
-    page = runtime.context.page
-    content = await invoke_with_retry(
-        agent_factory=lambda: create_email_agent(system_prompt, page),
-        page=page,
-        context=Context(page=page, website_name=runtime.context.website_name, outlook_service=runtime.context.outlook_service, llm_name=runtime.context.llm),
-        function_name=function_name,
-        input_data=state,
-    )
+    content = await create_and_invoke_agent_with_retry(state, runtime, function_name)
+    
     return {"messages": [AIMessage(content=content, name=function_name)]}
 
 async def login(state: State, runtime: Runtime[ContextSchema]) -> State:
@@ -74,15 +67,7 @@ async def login(state: State, runtime: Runtime[ContextSchema]) -> State:
     Returns a summary AIMessage.
     """
     function_name = "login"
-    system_prompt = load_prompt(f"{function_name}.md")
-    page = runtime.context.page
-    content = await invoke_with_retry(
-        agent_factory=lambda: create_email_agent(system_prompt, page),
-        page=page,
-        context=Context(page=page, website_name=runtime.context.website_name, outlook_service=runtime.context.outlook_service, llm_name=runtime.context.llm),
-        function_name=function_name,
-        input_data=state,
-    )
+    content = await create_and_invoke_agent_with_retry(state, runtime, function_name)
     return {"messages": [AIMessage(content=content, name=function_name)]}
 
 async def open_email_settings(state: State, runtime: Runtime[ContextSchema]) -> State:
@@ -92,15 +77,7 @@ async def open_email_settings(state: State, runtime: Runtime[ContextSchema]) -> 
     Returns a summary AIMessage.
     """
     function_name = "open_email_settings"
-    system_prompt = load_prompt(f"{function_name}.md")
-    page = runtime.context.page
-    content = await invoke_with_retry(
-        agent_factory=lambda: create_email_agent(system_prompt, page),
-        page=page,
-        context=Context(page=page, website_name=runtime.context.website_name, outlook_service=runtime.context.outlook_service, llm_name=runtime.context.llm),
-        function_name=function_name,
-        input_data=state,
-    )
+    content = await create_and_invoke_agent_with_retry(state, runtime, function_name)
     return {"messages": [AIMessage(content=content, name=function_name)]}
 
 async def change_email(state: State, runtime: Runtime[ContextSchema]) -> State:
@@ -110,13 +87,5 @@ async def change_email(state: State, runtime: Runtime[ContextSchema]) -> State:
     Returns a summary AIMessage.
     """
     function_name = "change_email"
-    system_prompt = load_prompt(f"{function_name}.md")
-    page = runtime.context.page
-    content = await invoke_with_retry(
-        agent_factory=lambda: create_email_agent(system_prompt, page),
-        page=page,
-        context=Context(page=page, website_name=runtime.context.website_name, outlook_service=runtime.context.outlook_service, llm_name=runtime.context.llm),
-        function_name=function_name,
-        input_data=state,
-    )
+    content = await create_and_invoke_agent_with_retry(state, runtime, function_name)
     return {"messages": [AIMessage(content=content, name=function_name)]}
