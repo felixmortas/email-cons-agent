@@ -3,6 +3,7 @@ import os
 from langchain.agents import create_agent
 from langchain_mistralai import ChatMistralAI
 from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain.agents.middleware import ToolCallLimitMiddleware
 
 from agent.tools import get_tools
 from agent.middleware.model_fallback import fallback
@@ -22,13 +23,21 @@ def create_email_agent(system_prompt, page, model_name: str = "mistral-large-lat
     
     page_snapshot = make_dynamic_page_snapshot(page)
 
+    # Allow only one use of this tool so the agent doesn't run in an infinite loop. If used another time, end ReAct agent invocation
+    refresh_page_limit = ToolCallLimitMiddleware(
+        run_limit=1,                                # max 1 call
+        tool_name="refresh_page_representation",    # only for this tool
+        exit_behavior="end"                         # bloc the tool use instead of crashing
+    )
+
     return create_agent(
         model=model, 
         tools=get_tools(), 
         state_schema=State, 
         context_schema=Context, 
         middleware=[page_snapshot,
-                    fallback],
+                    fallback,
+                    refresh_page_limit],
         system_prompt=system_prompt,
         debug=False
     )

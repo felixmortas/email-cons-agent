@@ -9,6 +9,7 @@ from .click_element import click_element
 from .fill_text_field import fill_text_field
 from .complete_step import complete_step
 from .get_verification_code import get_verification_code
+from .refresh_page_representation import refresh_page_representation
 
 
 def get_tools() -> list:
@@ -18,4 +19,4 @@ def get_tools() -> list:
     Returns:
         list: List of decorated tool callables ready for LangGraph binding.
     """
-    return [click_element, fill_text_field, complete_step, get_verification_code]
+    return [click_element, fill_text_field, complete_step, get_verification_code, refresh_page_representation]
