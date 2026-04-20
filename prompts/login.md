@@ -12,7 +12,7 @@ Une représentation de la page en Markdown t'est fournie dans le message utilisa
 - Tu peux enchaîner plusieurs outils à la suite : `fill_text_field` avec identifier="EMAIL", puis identifier="PASSWORD", puis `click_element` sur le bouton "Se connecter"
 - Une réponse `❌ Erreur click [x]: Locator.click: Timeout ...ms exceeded.` ne signifie pas forcément que le clic a échoué. Regarde le nouvel état de la page pour savoir si le clic a réellement fonctionné ou non.
 
-**CRITIQUE** : Attention ! Tu dois être sûr d'avoir réussi à te connecter avant de valider l'étape. Regarde bien la représentation de la page actuelle.
+**CRITIQUE** : Attention ! Tu ne dois pas valider l'étape juste après un clic si la représentation de la page actuelle ne donne pas d'indice de connexion réussie.
 
 ## ✅ CONDITION DE SUCCÈS
 Tu es connecté si l'un de ces indices est présent sur la page :
@@ -20,6 +20,7 @@ Tu es connecté si l'un de ces indices est présent sur la page :
 - Un bouton ou lien de déconnexion ("Se déconnecter", "Logout"...)
 - Des informations utilisateur ("Mon compte", "Mon profil"...)
 - L'absence du formulaire email/mot de passe alors que tu viens de soumettre tes identifiants
+- Absence de demande de validation grâce à un code reçu par email
 
 > Au début de ta mission, tu étais sur la page de connexion avec les formulaires email et mot de passe. Si ils n'y sont plus et que l'historique des étapes est cohérent, tu es sûrement connecté.
 

@@ -61,7 +61,7 @@ async def find_login_page(state: AgentInputState, runtime: Runtime[ContextSchema
     content = await invoke_with_retry(
         agent_factory=lambda: create_email_agent(system_prompt, page),
         page=page,
-        context=Context(page=page),
+        context=Context(page=page, website_name=runtime.context.website_name, outlook_service=runtime.context.outlook_service, llm_name=runtime.context.llm),
         function_name=function_name,
         input_data=state,
     )
@@ -79,7 +79,7 @@ async def login(state: State, runtime: Runtime[ContextSchema]) -> State:
     content = await invoke_with_retry(
         agent_factory=lambda: create_email_agent(system_prompt, page),
         page=page,
-        context=Context(page=page),
+        context=Context(page=page, website_name=runtime.context.website_name, outlook_service=runtime.context.outlook_service, llm_name=runtime.context.llm),
         function_name=function_name,
         input_data=state,
     )
@@ -97,7 +97,7 @@ async def open_email_settings(state: State, runtime: Runtime[ContextSchema]) -> 
     content = await invoke_with_retry(
         agent_factory=lambda: create_email_agent(system_prompt, page),
         page=page,
-        context=Context(page=page),
+        context=Context(page=page, website_name=runtime.context.website_name, outlook_service=runtime.context.outlook_service, llm_name=runtime.context.llm),
         function_name=function_name,
         input_data=state,
     )
@@ -115,7 +115,7 @@ async def change_email(state: State, runtime: Runtime[ContextSchema]) -> State:
     content = await invoke_with_retry(
         agent_factory=lambda: create_email_agent(system_prompt, page),
         page=page,
-        context=Context(page=page),
+        context=Context(page=page, website_name=runtime.context.website_name, outlook_service=runtime.context.outlook_service, llm_name=runtime.context.llm),
         function_name=function_name,
         input_data=state,
     )

@@ -5,10 +5,13 @@ LangChain tool for securely filling input fields using environment-stored creden
 """
 
 import os
+import time
 from typing import Annotated
+
 from langchain.messages import ToolMessage
 from langgraph.types import Command
 from langchain.tools import InjectedToolCallId, tool, ToolRuntime
+
 from agent.context import Context
 from .page_utils import locate_by_agent_index, wait_for_dom_stable
 
@@ -28,12 +31,15 @@ async def fill_text_field(
         Les credentials sont lus depuis les variables d'environnement.
         Clés disponibles : EMAIL, PASSWORD, NEW_EMAIL
 
-    ⚠️ SÉCURITÉ : Aucune valeur réelle n'est exposée dans ce message.
+    ⚠️ SÉCURITÉ : Aucune valeur réelle de credentials n'est exposée dans ce message.
+
+    Pour remplir le champs avec une valeur custom, tu insérer la valeur comme paramètre de "identifier".
+    Exemple de valeurs custom : 321654, hQf-543-ZdZ, HC2AdG
 
     Args:
         index (int): Index du champ tel qu'affiché dans le snapshot.
         identifier (str): Nom de la variable d'environnement à utiliser.
-                          Valeurs acceptées : "EMAIL", "PASSWORD", "NEW_EMAIL"
+                          Valeurs acceptées : "EMAIL", "PASSWORD", "NEW_EMAIL", "custom value"
 
     Returns:
         Résultat du remplissage (succès ou erreur).
@@ -41,16 +47,17 @@ async def fill_text_field(
     Examples:
         fill_text_field(index=1, identifier="EMAIL")
         fill_text_field(index=2, identifier="PASSWORD")
+        fill_text_field(index=3, identifier="321654")
     """
     page = runtime.context["page"]
 
     # Resolve secret from environment
-    value = os.getenv(identifier.upper())
-    if not value:
-        return Command(update={"messages": [ToolMessage(
-            content=f"❌ Variable '{identifier}' non trouvée dans l'environment.",
-            tool_call_id=tool_call_id,
-        )]})
+    value = os.getenv(identifier.upper(), identifier)
+    # if not value:
+    #     return Command(update={"messages": [ToolMessage(
+    #         content=f"❌ Variable '{identifier}' non trouvée dans l'environment.",
+    #         tool_call_id=tool_call_id,
+    #     )]})
 
     # Locate element by stable index
     try:
@@ -66,5 +73,7 @@ async def fill_text_field(
         result = f"✅ {identifier} remplit via data-agent-index={index}"
     except Exception as e:
         result = f"❌ Erreur de remplissage [{index}] {identifier}: {e}"
+    
+    await time.sleep(1)
 
     return Command(update={"messages": [ToolMessage(content=result, tool_call_id=tool_call_id)]})

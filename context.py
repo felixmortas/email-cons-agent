@@ -12,10 +12,12 @@ Attributes:
 from dataclasses import dataclass, field
 from typing import Optional
 from playwright.async_api import Page
+from services.outlook_service import OutlookService
 
 
 @dataclass
 class ContextSchema:
     website_name: str
     page: Optional[Page] = field(default=None, init=False)
+    outlook_service: Optional[OutlookService] = field(default=None, init=False)
     llm: str = "mistral-small-latest"

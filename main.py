@@ -8,8 +8,11 @@ Usage:
 
 import argparse
 import asyncio
+import os
 
 from dotenv import load_dotenv
+
+from services.outlook_service import OutlookService
 load_dotenv()
 
 from context import ContextSchema
@@ -57,6 +60,13 @@ def parse_args() -> argparse.Namespace:
 
 async def run(args: argparse.Namespace) -> None:
     context=ContextSchema(website_name=args.website)
+    
+    context.outlook_service = OutlookService(
+        client_id=os.getenv("OUTLOOK_CLIENT_ID"),
+        client_secret=os.getenv("OUTLOOK_CLIENT_SECRET"),
+        refresh_token=os.getenv("OUTLOOK_REFRESH_TOKEN"),
+    )
+
     async with playwright_session(context=context, headless=args.headless):
         initial_state = {
             "messages": [],

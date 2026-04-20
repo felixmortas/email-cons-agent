@@ -1,5 +1,8 @@
 from typing import Optional, TypedDict
 
 class Context(TypedDict):
-    """Contexte d'exécution contenant la page Playwright"""
-    page: Optional[object]
+    """Execution context containing the Playwright page"""
+    page: object
+    website_name: Optional[str]
+    outlook_service: Optional[object]
+    llm_name: Optional[str] = "mistral-small-latest"

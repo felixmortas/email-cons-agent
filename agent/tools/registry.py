@@ -8,6 +8,7 @@ to retrieve them for graph initialization.
 from .click_element import click_element
 from .fill_text_field import fill_text_field
 from .complete_step import complete_step
+from .get_verification_code import get_verification_code
 
 
 def get_tools() -> list:
@@ -17,4 +18,4 @@ def get_tools() -> list:
     Returns:
         list: List of decorated tool callables ready for LangGraph binding.
     """
-    return [click_element, fill_text_field, complete_step]
+    return [click_element, fill_text_field, complete_step, get_verification_code]
