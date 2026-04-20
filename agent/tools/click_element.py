@@ -35,8 +35,9 @@ async def click_element(
 
     Examples:
         click_element(index=3)  # Clique sur l'élément [3] du snapshot
-    """
+    """    
     page = runtime.context["page"]
+    await page.wait_for_timeout(3000)
 
     try:
         element = await locate_by_agent_index(page, index)

@@ -5,7 +5,6 @@ LangChain tool for securely filling input fields using environment-stored creden
 """
 
 import os
-import asyncio
 from typing import Annotated
 
 from langchain.messages import ToolMessage
@@ -69,11 +68,9 @@ async def fill_text_field(
     try:
         await element.click()              # Focus first
         await element.fill(value)
-        await wait_for_dom_stable(page, timeout_ms=3000)  # Allow JS validation to run
+        await wait_for_dom_stable(page, timeout_ms=1000)  # Allow JS validation to run
         result = f"✅ {identifier} remplit via data-agent-index={index}"
     except Exception as e:
         result = f"❌ Erreur de remplissage [{index}] {identifier}: {e}"
     
-    await asyncio.sleep(1)
-
     return Command(update={"messages": [ToolMessage(content=result, tool_call_id=tool_call_id)]})
