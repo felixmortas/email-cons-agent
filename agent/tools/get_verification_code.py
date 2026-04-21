@@ -16,81 +16,94 @@ from agent.context import Context
 from agent.tools.email_utils import extract_verification_code, select_verification_email
 from services.outlook_service import OutlookService
 
-
 @tool
 async def get_verification_code(
     runtime: ToolRuntime[Context],
     tool_call_id: Annotated[str, InjectedToolCallId],
-    sender: str = "",
 ) -> Command:
     """
-    Récupère un code de vérification reçu par email dans la boîte mail.
+    Récupère un code de vérification reçu par email dans la boîte mail de l'utilisateur.
 
-    Args:
-        sender  — Nom de l'expéditeur du code de vérification
     Returns:
         Le code extrait (str) ou un message d'erreur si aucun code n'est trouvé.
 
     Example:
-        get_verification_code(sender="Auchan")
+        get_verification_code()
     """
-    # Wait to be sure the email is received
-    time.sleep(30)
+    print("[DEBUG] Use tool get_verification_code")
 
-    # Retrieving the Outlook service from the agent context
-    # The context must expose a configured instance of OutlookService.
+    # ── 1. Pull required values from the agent context ────────────────────────
     outlook: OutlookService | None = runtime.context["outlook_service"]
+    llm_name: str = runtime.context["llm_name"]
+    website_name: str = runtime.context["website_name"]
+
+    # ── 2. Run all fallible operations; capture errors without raising ─────────
+    # We intentionally avoid calling `interrupt()` inside any of these blocks.
+    # Instead we record a human-readable reason so we can trigger the interrupt
+    # once, cleanly, outside every try/except.
+    code: str | None = None
+    error_reason: str | None = None
+
     if outlook is None:
-        return Command(update={"messages": [ToolMessage(
-            content="❌ OutlookService non disponible dans le contexte de l'agent.",
-            tool_call_id=tool_call_id,
-        )]})
+        # Service was never injected into the context — nothing we can do
+        # programmatically, so we will ask the user.
+        error_reason = (
+            "Impossible de se connecter à la boîte aux lettres (OutlookService n'est pas disponible)."
+        )
+    else:
+        # ── Step A: Select the right email ────────────────────────────────────
+        # Fetch recent emails and let the LLM pick the one that most likely
+        # contains the verification code for the current website.
+        try:
+            emails_list = outlook.get_recent_emails()
 
-    # Search for code
-    llm_name = runtime.context["llm_name"]
+            if not emails_list:
+                # Inbox is empty (within the look-back window) — ask the user.
+                error_reason = "Aucun e-mail récent n'a été trouvé dans la boîte de réception."
+            else:
+                # `select_verification_email` returns the Graph API message ID
+                # of the best matching email.
+                email_id = select_verification_email(llm_name, website_name, emails_list)
 
-    # ── Step 1: Select the email ───────────────────────────────────────
-    try:
-        website_name = runtime.context["website_name"]
-        emails_list = outlook.get_recent_emails()
+        except Exception as e:
+            # Network error, Graph API failure, or LLM selector error.
+            error_reason = f"Erreur lors de la récupération des e-mails : {e}"
 
-        if not emails_list:
-            return Command(update={"messages": [ToolMessage(
-                content="❌ Erreur lors de la récupération des emails : aucun email récupéré",
-                tool_call_id=tool_call_id,
-            )]})
-            
-        email_id = select_verification_email(llm_name, website_name, emails_list)
+        # ── Step B: Extract the verification code from the email ──────────────
+        # Only attempted if step A succeeded (i.e. no error_reason set yet).
+        if error_reason is None:
+            try:
+                # Retrieve the full email body (HTML stripped to plain text).
+                email_content = outlook.read_email(email_id)
 
-    except ValueError as e:
-        return Command(update={"messages": [ToolMessage(
-            content=f"❌ Erreur : {e}",
-            tool_call_id=tool_call_id,
-        )]})
-    except Exception as e:
-        return Command(update={"messages": [ToolMessage(
-            content=f"❌ Erreur lors de la récupération des emails : {e}",
-            tool_call_id=tool_call_id,
-        )]})
+                # Ask the LLM to locate and return the verification code.
+                code = extract_verification_code(llm_name, email_content)
 
-    # ── Step 2: Retrieving the verification code ───────────────────────────────────────
+            except Exception as e:
+                # Could not read the email or parse a code out of it.
+                error_reason = f"Impossible d'extraire le code de l'e-mail : {e}"
 
-    try:
-        email_content = outlook.read_email(email_id)
+    # ── 3. Human-in-the-loop fallback ─────────────────────────────────────────
+    # `interrupt()` MUST NOT be placed inside a try/except block: LangGraph
+    # suspends the node by raising a special internal exception, and wrapping
+    # it in a bare except would swallow that signal and break the pause/resume
+    # mechanism entirely.
+    #
+    # Placing the single interrupt call here — after all fallible logic — also
+    # guarantees that its position in the node is stable across executions,
+    # which is required for correct index-based resume matching.
+    if error_reason is not None:
+        print(f"\n⚠️ {error_reason}")
+        raw_input = input("Veuillez entrer manuellement le code de vérification reçu par email : ").strip()
 
-        code = extract_verification_code(llm_name, email_content)
-        
+        # Normalise: the user may return a plain string or something coercible.
+        code = raw_input.strip() if isinstance(raw_input, str) else str(raw_input)
 
-    except ValueError as e:
-        return Command(update={"messages": [ToolMessage(
-            content=f"❌ Erreur : {e}",
-            tool_call_id=tool_call_id,
-        )]})
-    except Exception as e:
-        return Command(update={"messages": [ToolMessage(
-            content=f"❌ Erreur lors du parsing de l'email : {e}",
-            tool_call_id=tool_call_id,
-        )]})
+    print("Code retrieved: ")
+    print(code)
 
-
-    return Command(update={"messages": [ToolMessage(content=code, tool_call_id=tool_call_id)]})
+    # ── 4. Return the code (from email or from the user) ──────────────────────
+    return Command(update={"messages": [ToolMessage(
+        content=code,
+        tool_call_id=tool_call_id,
+    )]})
