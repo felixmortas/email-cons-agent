@@ -31,6 +31,9 @@ async def get_verification_code(
         get_verification_code()
     """
     print("[DEBUG] Use tool get_verification_code")
+    print("Wait for mailbox to receive the verification code email...")
+    time.sleep(30)
+    print("Finished waiting. Use logique of the tool get_verification_code")
 
     # ── 1. Pull required values from the agent context ────────────────────────
     outlook: OutlookService | None = runtime.context["outlook_service"]
