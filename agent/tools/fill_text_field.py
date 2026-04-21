@@ -48,6 +48,7 @@ async def fill_text_field(
         fill_text_field(index=2, identifier="PASSWORD")
         fill_text_field(index=3, identifier="321654")
     """
+    print("[DEBUG] Use tool fill_text_field")
     page = runtime.context["page"]
 
     # Resolve secret from environment
@@ -73,4 +74,5 @@ async def fill_text_field(
     except Exception as e:
         result = f"❌ Erreur de remplissage [{index}] {identifier}: {e}"
     
+    print(result)
     return Command(update={"messages": [ToolMessage(content=result, tool_call_id=tool_call_id)]})

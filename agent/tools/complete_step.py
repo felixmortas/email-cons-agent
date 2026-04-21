@@ -19,6 +19,7 @@ async def complete_step(
     """
     Marque la mission actuelle comme réussie et sauvegarde l'URL actuelle.
     """
+    print("[DEBUG] Use tool complete_step")
     page = runtime.context["page"]
     current_url = page.url
     return Command(update={

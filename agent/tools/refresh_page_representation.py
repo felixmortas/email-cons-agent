@@ -18,7 +18,7 @@ async def refresh_page_representation(
 ) -> Command:
     """
     Rafraîchit la représentation de la page actuelle.
-    /!\ Utilisable seulement une fois ! Si l'outil est déjà utilisé et que tu en as besoin, ne rien faire.
+    Attention ! Utilisable seulement une fois ! Si l'outil est déjà utilisé et que tu en as besoin, ne rien faire.
 
     Returns:
         Un message de confirmation de rafraîchissement de la page actuelle
@@ -26,6 +26,8 @@ async def refresh_page_representation(
     Example:
         get_verification_code(sender="Auchan")
     """
+    print("[DEBUG] Use tool refresh_page_representation")
+
     # Wait to be sure the email is received
     time.sleep(30)
 

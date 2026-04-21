@@ -28,6 +28,7 @@ def find_url(state: State, runtime: Runtime[ContextSchema]) -> State:
     Only reached when `initial_url` is missing from state.
     Writes `initial_url` back to state.
     """
+    print("[DEBUG] Enter Find URL step")
     query = runtime.context.website_name
     search_results = search_engine.search(query=query)
     llm_name = runtime.context.llm
@@ -42,6 +43,7 @@ async def init_page(state: State, runtime: Runtime[ContextSchema]) -> State:
     The `page` object is already in state, injected by main.py before invoke.
     Returns an empty State — page is a live reference, no copy needed.
     """
+    print("[DEBUG] Enter Init page step")
     page = runtime.context.page
     url: str = state["initial_url"]
     await page.goto(url, wait_until="load")
@@ -55,6 +57,7 @@ async def find_login_page(state: AgentInputState, runtime: Runtime[ContextSchema
     Retries up to MAX_RETRIES times on ❌. Halts graph on persistent failure.
     Returns a summary AIMessage appended to graph state messages.
     """
+    print("[DEBUG] Enter Find login page step")
     function_name = "find_login_page"
     content = await create_and_invoke_agent_with_retry(state, runtime, function_name)
     
@@ -66,6 +69,7 @@ async def login(state: State, runtime: Runtime[ContextSchema]) -> State:
     Retries up to MAX_RETRIES times on ❌. Halts graph on persistent failure.
     Returns a summary AIMessage.
     """
+    print("[DEBUG] Enter Login page step")
     function_name = "login"
     content = await create_and_invoke_agent_with_retry(state, runtime, function_name)
     return {"messages": [AIMessage(content=content, name=function_name)]}
@@ -76,6 +80,7 @@ async def open_email_settings(state: State, runtime: Runtime[ContextSchema]) -> 
     Retries up to MAX_RETRIES times on ❌. Halts graph on persistent failure.
     Returns a summary AIMessage.
     """
+    print("[DEBUG] Enter open email settings step")
     function_name = "open_email_settings"
     content = await create_and_invoke_agent_with_retry(state, runtime, function_name)
     return {"messages": [AIMessage(content=content, name=function_name)]}
@@ -86,6 +91,7 @@ async def change_email(state: State, runtime: Runtime[ContextSchema]) -> State:
     Retries up to MAX_RETRIES times on ❌. Halts graph on persistent failure.
     Returns a summary AIMessage.
     """
+    print("[DEBUG] Enter change email step")
     function_name = "change_email"
     content = await create_and_invoke_agent_with_retry(state, runtime, function_name)
     return {"messages": [AIMessage(content=content, name=function_name)]}

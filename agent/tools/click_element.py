@@ -36,6 +36,7 @@ async def click_element(
     Examples:
         click_element(index=3)  # Clique sur l'élément [3] du snapshot
     """    
+    print("[DEBUG] Use tool click_element")
     page = runtime.context["page"]
     await page.wait_for_timeout(3000)
 
@@ -109,5 +110,6 @@ async def click_element(
     if result is None:
         await page.wait_for_timeout(300)
         result = f"✅ Clic (no-change) [{index}] {tag} id={el_id} « {text} »"
+    print(result)
 
     return Command(update={"messages": [ToolMessage(content=result, tool_call_id=tool_call_id)]})
