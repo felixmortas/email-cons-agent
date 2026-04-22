@@ -17,8 +17,10 @@ async def refresh_page_representation(
     tool_call_id: Annotated[str, InjectedToolCallId],
 ) -> Command:
     """
-    Rafraîchit la représentation de la page actuelle.
-    Attention ! Utilisable seulement une fois ! Si l'outil est déjà utilisé et que tu en as besoin, ne rien faire.
+    Rafraîchit la représentation de la page actuelle si elle est indisponible ou incohérente avec la dernière action.
+
+    **CRITIQUE** : Attention ! N'utilise l'outil que si la représentation de la page actuelle n'est pas disponible. 
+    N'utilise jamais cet outil après avoir uniquement utilisé "fill_text_field".
 
     Returns:
         Un message de confirmation de rafraîchissement de la page actuelle
