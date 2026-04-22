@@ -31,10 +31,14 @@ def find_url(state: State, runtime: Runtime[ContextSchema]) -> State:
     print("[DEBUG] Enter Find URL step")
     query = runtime.context.website_name
     search_results = search_engine.search(query=query)
+    print("[DEBUG] URLs found:")
+    print(search_results)
     llm_name = runtime.context.llm
     model = init_chat_model(llm_name).with_structured_output(URLSelection)
     prompt = f"Given the website name '{query}', pick the most likely official homepage URL from this list: {search_results}. Return the URL in a JSON format without any other text or explanation.\n\nExample output:\n{{\"url\": \"https://www.example.com/\"}}"
     response = model.invoke([HumanMessage(content=prompt)])
+    print("[DEBUG] URL selected:")
+    print(response.url)
     return {"initial_url": response.url}
 
 async def init_page(state: State, runtime: Runtime[ContextSchema]) -> State:
