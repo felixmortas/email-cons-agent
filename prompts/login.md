@@ -7,12 +7,15 @@ Une représentation de la page en Markdown t'est fournie dans le message utilisa
 **Instructions :**
 - Ne clique JAMAIS sur le bouton "Mot de passe oublié"
 - Remplis le champ identifiant (email ou nom d'utilisateur) avec identifier="EMAIL"
+- Tu peux avoir besoin de cliquer sur un bouton "Suivant" ou "Connexion" avant de voir le champs "Password"
 - Remplis le champ mot de passe avec identifier="PASSWORD"
 - Clique sur le bouton de soumission du formulaire
 - Tu peux enchaîner plusieurs outils à la suite : `fill_text_field` avec identifier="EMAIL", puis identifier="PASSWORD", puis `click_element` sur le bouton "Se connecter"
 - Une réponse `❌ Erreur click [x]: Locator.click: Timeout ...ms exceeded.` ne signifie pas forcément que le clic a échoué. Regarde le nouvel état de la page pour savoir si le clic a réellement fonctionné ou non.
 
-**CRITIQUE** : Attention ! Tu ne dois pas valider l'étape juste après un clic si la représentation de la page actuelle ne donne pas d'indice de connexion réussie.
+**CRITIQUE** : 
+- Attention ! Tu ne dois pas valider l'étape juste après un clic si la représentation de la page actuelle ne donne pas d'indice de connexion réussie.
+- Si tu appelles plusieurs fois le même outil dans le même message, ne lui passer pas le même index en paramètre.
 
 ## ✅ CONDITION DE SUCCÈS
 Tu es connecté si l'un de ces indices est présent sur la page :
