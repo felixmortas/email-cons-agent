@@ -4,7 +4,7 @@ from typing import Annotated, Optional, TypedDict
 
 class State(TypedDict):
     messages: Annotated[list[BaseMessage], add_messages]
-    initial_url: str
+    initial_url: Optional[str]
     fallback_url: str
 
 class AgentInputState(TypedDict):
