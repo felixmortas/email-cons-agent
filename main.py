@@ -21,6 +21,7 @@ from graph import graph
 from services.langfuse_engine import langfuse_handler
 from services.playwright_session import playwright_session
 from services.outlook_service import OutlookService
+from services.gui_exclusion import selectionner_sites_gui
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -142,24 +143,17 @@ def main() -> None:
         os.environ["EMAIL"] = email_cible
     else:
         email_cible = os.environ["EMAIL"]
-
-    # 4. Display for selection (Exclusions)
-    print("\nSites trouvés :")
-    indices_valides = []
-    for i, item in enumerate(full_data.get('items', [])):
-        if item.get('login', {}).get('username') == email_cible:
-            print(f"{i}: {item.get('name')}")
-            indices_valides.append(i)
-
-    exclusion_input = input("\nEntrez les index à EXCLURE (ex: 1, 5) ou vide : ")
-    exclusions = [int(x.strip()) for x in exclusion_input.split(',') if x.strip().isdigit()]
-
-    # 5. Reading the new email
+    
+    # 4. Reading the new email
     if os.getenv("NEW_EMAIL") is None:
         new_email = input("Entrez la nouvelle adresse email : ")
         os.environ["NEW_EMAIL"] = new_email
     else:
         new_email = os.environ["NEW_EMAIL"]
+
+    # 5. Display for selection (Exclusions)
+    exclusions = selectionner_sites_gui(full_data, email_cible)
+
 
 
     # 6. Start of treatment
@@ -167,4 +161,8 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    # # Very important for macOS with multiprocessing for GUI
+    import multiprocessing
+    multiprocessing.freeze_support()
+
     main()
