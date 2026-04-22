@@ -143,7 +143,7 @@ async def get_page_representation(page: Page) -> str:
                 } else {
                     if (el.querySelector(INTERACTIVE_SELECTOR)) continue;
 
-                    const text = (el.innerText || "").trim().replace(/\\s+/g, ' ').slice(0, 200);
+                    const text = (el.innerText || "").trim().replace(/\\s+/g, ' ').slice(0, 125);
                     if (!text) continue;
 
                     // Skip text elements that duplicate an interactive element's name
