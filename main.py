@@ -83,7 +83,6 @@ async def run(args: argparse.Namespace, full_data: dict, working_file: str, emai
         os.environ["PASSWORD"] = login.get('password', '')
             
         print(f"Processing of {item.get('name')}...")
-        print(args.model)
         context=ContextSchema(website_name=item.get('name'), llm=args.model)
         context.outlook_service = outlook_service
 
