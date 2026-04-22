@@ -23,6 +23,7 @@ async def get_verification_code(
 ) -> Command:
     """
     Récupère un code de vérification reçu par email dans la boîte mail de l'utilisateur.
+    Avant d'appeler l'outil, soit sûr d'être sur la page qui te demande le code. Parfois, tu peux avoir besoin de cliquer sur un bouton "Suivant" pour recevoir le code.
 
     Returns:
         Le code extrait (str) ou un message d'erreur si aucun code n'est trouvé.
