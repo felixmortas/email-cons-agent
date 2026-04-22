@@ -29,6 +29,6 @@ async def refresh_page_representation(
     print("[DEBUG] Use tool refresh_page_representation")
 
     # Wait to be sure the email is received
-    time.sleep(30)
+    time.sleep(15)
 
     return Command(update={"messages": [ToolMessage(content="Page en cours de rafraichissement ... Voir la représentation de la page actuelle", tool_call_id=tool_call_id)]})
