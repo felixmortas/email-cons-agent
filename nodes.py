@@ -73,7 +73,7 @@ async def login(state: State, runtime: Runtime[ContextSchema]) -> State:
     Retries up to MAX_RETRIES times on ❌. Halts graph on persistent failure.
     Returns a summary AIMessage.
     """
-    print("[DEBUG] Enter Login page step")
+    print("[DEBUG] Enter Login step")
     function_name = "login"
     content = await create_and_invoke_agent_with_retry(state, runtime, function_name)
     return {"messages": [AIMessage(content=content, name=function_name)]}
