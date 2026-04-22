@@ -38,7 +38,7 @@ class OutlookService:
     # LECTURE DE MAILS
     # ─────────────────────────────────────────────
 
-    def get_recent_emails(self, max_results: int = 100, since_minutes: int = 2) -> list[dict]:
+    def get_recent_emails(self, max_results: int = 100, since_minutes: int = 5) -> list[dict]:
         """
         Retrieves the N most recent emails received in the inbox
         over the past `since_minutes` minutes.
