@@ -13,6 +13,7 @@ Une représentation de la page en Markdown créée avec la snapshot d'accessibil
 
 ## ✅ CONDITION DE SUCCÈS
 Tu as réussi dès que tu es sur une page contenant un formulaire avec des champs email et mot de passe.
+Attention à ne pas te tromper avec la page d'inscription
 Dès que cette condition est remplie, appelle l'outil `complete_step` — c'est **obligatoire**
 
 ## 🖥️ ÉTAT ACTUEL DE LA PAGE
