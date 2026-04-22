@@ -63,6 +63,40 @@ def save_full_json(file_path: str, data: dict):
     with open(file_path, 'w', encoding='utf-8') as f:
         json.dump(data, f, indent=4, ensure_ascii=False)
 
+def validate_and_correct_uri(uri: str) -> str | None:
+    """
+    Validates and corrects a URI by ensuring it is a valid web URL.
+    Adds 'https://www.' prefix if missing, and rejects Android app URIs.
+
+    Args:
+        uri (str): The URI to validate and correct.
+
+    Returns:
+        str | None: The corrected URI if valid, otherwise None.
+    """
+    if not uri:
+        return None
+
+    # Reject Android app URIs (e.g., intent://, market://)
+    if uri.startswith(('intent:', 'market:', 'android-app:')):
+        return None
+
+    # Add 'https://www.' if the URI is missing a scheme
+    if not uri.startswith(('http://', 'https://')):
+        uri = f'https://www.{uri}'
+
+    # Basic check to ensure the URI looks like a valid web URL
+    try:
+        from urllib.parse import urlparse
+        result = urlparse(uri)
+        if not all([result.scheme, result.netloc]):
+            return None
+    except:
+        return None
+
+    return uri
+
+
 async def run(args: argparse.Namespace, full_data: dict, working_file: str, email_cible: str, exclusions: list, new_email: str) -> None:
     
     outlook_service = OutlookService(
@@ -87,7 +121,9 @@ async def run(args: argparse.Namespace, full_data: dict, working_file: str, emai
         context.outlook_service = outlook_service
 
         uris = login.get('uris', [])
-        first_uri = uris[0].get('uri') if uris else None
+        first_raw_uri = uris[0].get('uri') if uris else None
+        first_uri = validate_and_correct_uri(first_raw_uri)
+
         initial_state = {
             "messages": [],
             "initial_url": first_uri,
