@@ -2,7 +2,7 @@ from langgraph.graph import StateGraph, START, END
 
 from context import ContextSchema
 from state import State
-from nodes import find_url, init_page, find_login_page, login, open_email_settings, change_email
+from nodes import find_url, init_page, find_login_page, login, open_email_settings, change_email, validate_email_change
 
 # ===================== BUILDING THE GRAPH =====================
 builder = StateGraph(State, context_schema=ContextSchema)
@@ -13,6 +13,7 @@ builder.add_node("find_login_page", find_login_page)
 builder.add_node("login", login)
 builder.add_node("open_email_settings", open_email_settings)
 builder.add_node("change_email", change_email)
+builder.add_node("validate_email_change", validate_email_change)
 
 # ===================== CONDITIONAL EDGES =====================
 def is_url_missing(state: State) -> bool:
@@ -26,6 +27,7 @@ builder.add_edge("init_page", "find_login_page")
 builder.add_edge("find_login_page", "login")
 builder.add_edge("login", "open_email_settings")
 builder.add_edge("open_email_settings", "change_email")
-builder.add_edge("change_email", END)
+builder.add_edge("change_email", "validate_email_change")
+builder.add_edge("validate_email_change", END)
 
 graph = builder.compile()

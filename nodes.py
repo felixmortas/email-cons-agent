@@ -99,3 +99,14 @@ async def change_email(state: State, runtime: Runtime[ContextSchema]) -> State:
     function_name = "change_email"
     content = await create_and_invoke_agent_with_retry(state, runtime, function_name)
     return {"messages": [AIMessage(content=content, name=function_name)]}
+
+async def validate_email_change(state: State, runtime: Runtime[ContextSchema]) -> State:
+    """
+    Valdiate the full process
+    """
+    print("[DEBUG] Enter change email step")
+    function_name = "validate_email_change"
+    content = await create_and_invoke_agent_with_retry(state, runtime, function_name)
+    if content.startswith('✅'):
+        return {"messages": [AIMessage(content="✅ Email changé avec succès", name=function_name)]}
+    return {"messages": [AIMessage(content=content, name=function_name)]}
