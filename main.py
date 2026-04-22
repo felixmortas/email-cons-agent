@@ -14,15 +14,13 @@ import os
 import shutil
 
 from dotenv import load_dotenv
-
-from services.outlook_service import OutlookService
 load_dotenv()
 
 from context import ContextSchema
 from graph import graph
 from services.langfuse_engine import langfuse_handler
 from services.playwright_session import playwright_session
-
+from services.outlook_service import OutlookService
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -107,7 +105,10 @@ async def run(args: argparse.Namespace, full_data: dict, working_file: str, emai
             )
 
             messages = final_state["messages"]
-            result = messages[-1].content
+            try:
+                result = messages[-1].content
+            except IndexError:
+                result = "❌ Echec"
 
             success = result.startswith('✅')
             
