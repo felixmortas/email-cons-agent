@@ -8,6 +8,7 @@ via the Microsoft Graph API.
 from typing import Annotated
 import time
 
+from inputimeout import inputimeout, TimeoutOccurred
 from langchain.messages import ToolMessage
 from langgraph.types import Command
 from langchain.tools import InjectedToolCallId, tool, ToolRuntime
@@ -98,10 +99,20 @@ async def get_verification_code(
     # which is required for correct index-based resume matching.
     if error_reason is not None:
         print(f"\n⚠️ {error_reason}")
-        raw_input = input("Veuillez entrer manuellement le code de vérification reçu par email : ").strip()
-
-        # Normalise: the user may return a plain string or something coercible.
-        code = raw_input.strip() if isinstance(raw_input, str) else str(raw_input)
+        try:
+            # Wait 300 secondes (5 minutes)
+            raw_input = inputimeout(
+                prompt="Veuillez entrer le code reçu par email (vous avez 5 min) : ", 
+                timeout=300
+            ).strip()
+            code = raw_input
+        except TimeoutOccurred:
+            print("\nTerminé : Délai de 5 minutes dépassé.")
+            # Ici, on renvoie un message d'erreur au LLM pour qu'il sache qu'il a échoué
+            return Command(update={"messages": [ToolMessage(
+                content="Erreur : L'utilisateur est absent, termine ici sans invoquer d'outil",
+                tool_call_id=tool_call_id,
+            )]})
 
     print("Code retrieved: ")
     print(code)

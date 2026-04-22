@@ -11,6 +11,7 @@ dependencies:
   - langchain-google-genai=4.2.1
   - langfuse-python=3.14.4
   - python-dotenv=1.2.1
+  - inputimeout=1.0.4
   - pip
   - pip:
     - playwright==1.58.0
