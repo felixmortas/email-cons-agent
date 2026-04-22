@@ -36,7 +36,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--model",
         type=str,
-        default="mistral-large-latest",
+        default="mistral-small-latest",
         help="Model name (e.g. mistral-large-latest, gemini-3-flash-preview)",
     )
     parser.add_argument(
@@ -83,8 +83,8 @@ async def run(args: argparse.Namespace, full_data: dict, working_file: str, emai
         os.environ["PASSWORD"] = login.get('password', '')
             
         print(f"Processing of {item.get('name')}...")
-
-        context=ContextSchema(website_name=item.get('name'))
+        print(args.model)
+        context=ContextSchema(website_name=item.get('name'), llm=args.model)
         context.outlook_service = outlook_service
 
         uris = login.get('uris', [])
@@ -111,7 +111,7 @@ async def run(args: argparse.Namespace, full_data: dict, working_file: str, emai
             except IndexError:
                 result = "❌ Echec"
 
-            success = result.startswith('✅')
+            success = result.startswith('✅ Email changé avec succès')
             
             # 7. Update vault if success
             if success:

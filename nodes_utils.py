@@ -50,7 +50,6 @@ async def _invoke_with_retry(
         if attempt > 1:
             print(f"[{function_name}] Retry {attempt}: Reset to {fallback_url}")
             await page.goto(fallback_url, wait_until="load")
-
         agent = agent_factory()
         inputs = {"messages": [HumanMessage("Go !")]}
         result = await agent.ainvoke(inputs, context=context)
@@ -76,10 +75,11 @@ async def _invoke_with_retry(
 async def create_and_invoke_agent_with_retry(state, runtime, function_name) -> str:
     system_prompt = _load_prompt(f"{function_name}.md")
     page = runtime.context.page
+    llm_name = runtime.context.llm
     content = await _invoke_with_retry(
-        agent_factory=lambda: create_email_agent(system_prompt, page),
+        agent_factory=lambda: create_email_agent(system_prompt, page, llm_name),
         page=page,
-        context=Context(page=page, website_name=runtime.context.website_name, outlook_service=runtime.context.outlook_service, llm_name=runtime.context.llm),
+        context=Context(page=page, website_name=runtime.context.website_name, outlook_service=runtime.context.outlook_service, llm_name=llm_name),
         function_name=function_name,
         input_data=state,
     )

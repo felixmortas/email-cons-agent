@@ -11,7 +11,7 @@ from agent.middleware.dynamic_page_snapshot import make_dynamic_page_snapshot
 from agent.state import State
 from agent.context import Context
 
-def create_email_agent(system_prompt, page, model_name: str = "mistral-large-latest"):
+def create_email_agent(system_prompt, page, model_name: str):
     if model_name.startswith("gemini"):
         model = ChatGoogleGenerativeAI(model=model_name, api_key=os.getenv('GOOGLE_API_KEY')) # gemini-3-flash-preview gemini-2.5-pro gemini-2.5-flash gemini-2.5-flash-lite gemini-2.5-flash-lite-preview-09-2025 gemini-2.5-flash-native-audio-preview-12-2025 gemini-2.5-flash-preview-tts gemini-2.0-flash gemini-2.0-flash-lite
 
@@ -31,7 +31,6 @@ def create_email_agent(system_prompt, page, model_name: str = "mistral-large-lat
     )
 
     call_tracker = ModelCallLimitMiddleware(run_limit=7, exit_behavior="end")
-
 
     return create_agent(
         model=model, 
