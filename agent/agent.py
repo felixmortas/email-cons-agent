@@ -30,7 +30,7 @@ def create_email_agent(system_prompt, page, model_name: str):
         exit_behavior="end"                         # bloc the tool use instead of crashing
     )
 
-    call_tracker = ModelCallLimitMiddleware(run_limit=7, exit_behavior="end")
+    call_tracker = ModelCallLimitMiddleware(run_limit=10, exit_behavior="end")
 
     return create_agent(
         model=model, 
