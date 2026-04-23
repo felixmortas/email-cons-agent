@@ -21,6 +21,7 @@ async def refresh_page_representation(
 
     **CRITIQUE** : Attention ! N'utilise l'outil que si la représentation de la page actuelle n'est pas disponible. 
     N'utilise jamais cet outil après avoir uniquement utilisé "fill_text_field".
+    Vérifie toujours en haut, au milieu et en bas de la page si un bouton ou un text field intéressant pour réaliser ton objectif est disponible pour éviter d'avoir à utiliser.
 
     Returns:
         Un message de confirmation de rafraîchissement de la page actuelle

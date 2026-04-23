@@ -51,7 +51,7 @@ async def _invoke_with_retry(
             print(f"[{function_name}] Retry {attempt}: Reset to {fallback_url}")
             await page.goto(fallback_url, wait_until="load")
         agent = agent_factory()
-        inputs = {"messages": [HumanMessage("Go !")]}
+        inputs = {"messages": [HumanMessage("Analyse la situation, créer un plan étape par étpae et améliore le à chaque itération pour arriver à remplir ta mission. Ensuite, appelle les outils dont tu as besoin")]}
         result = await agent.ainvoke(inputs, context=context)
         messages = result["messages"]
         last_content = messages[-1].content

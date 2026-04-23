@@ -6,6 +6,7 @@ Une représentation de la page en Markdown créée avec la snapshot d'accessibil
 
 **Instructions :**
 - Tu peux avoir besoin d'accepter les cookies
+- Tu peux avoir besoin de cliquer sur un bouton "Menu"
 - Cherche un lien ou un bouton de connexion ("Se connecter", "Login", "Sign in", "Mon compte"...)
 - Clique dessus pour naviguer vers la page de connexion
 - Si tu es déjà sur la page de connexion (présence d'un formulaire avec champs email/mot de passe), appelle immédiatement l'outil `complete_step` puis arrête-toi.

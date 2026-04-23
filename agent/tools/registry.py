@@ -19,4 +19,4 @@ def get_tools() -> list:
     Returns:
         list: List of decorated tool callables ready for LangGraph binding.
     """
-    return [click_element, fill_text_field, complete_step, get_verification_code, refresh_page_representation]
+    return [click_element, fill_text_field, get_verification_code, refresh_page_representation, complete_step]
