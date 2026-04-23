@@ -36,6 +36,8 @@ def make_dynamic_page_snapshot(page):
         # 2. Get the fresh snapshot
         # Note: ensure 'page' is available in your closure from make_dynamic_page_snapshot
         snapshot = await get_page_representation(page)
+        if snapshot=="":
+            snapshot = "INDISPONIBLE - Rafraîchit la page"
 
         # 3. Return the combined string
         if SNAPSHOT_PLACEHOLDER in system_prompt:

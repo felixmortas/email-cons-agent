@@ -17,21 +17,34 @@ async def refresh_page_representation(
     tool_call_id: Annotated[str, InjectedToolCallId],
 ) -> Command:
     """
-    Rafraîchit la représentation de la page actuelle si elle est indisponible ou incohérente avec la dernière action.
+    Rafraîchit la représentation de la page actuelle.
 
-    **CRITIQUE** : Attention ! N'utilise l'outil que si la représentation de la page actuelle n'est pas disponible. 
-    N'utilise jamais cet outil après avoir uniquement utilisé "fill_text_field".
-    Vérifie toujours en haut, au milieu et en bas de la page si un bouton ou un text field intéressant pour réaliser ton objectif est disponible pour éviter d'avoir à utiliser.
+    **CRITIQUE** : Tu ne peux utiliser cet outil QUE s'il est écrit "INDISPONIBLE - Rafraîchit la page" à la suite de "# 🖥️ ÉTAT ACTUEL DE LA PAGE".
 
     Returns:
         Un message de confirmation de rafraîchissement de la page actuelle
 
     Example:
-        get_verification_code(sender="Auchan")
+        ❌ :
+        # 🖥️ ÉTAT ACTUEL DE LA PAGE
+        [0] a: "Menu"
+        [1] a: "Sign Up" (id=elRegisterButton)
+        [2] a: "Forums"
+        [3] a: "Guides"
+        
+        refresh_page_representation()
+
+        
+        ✅ :
+        # 🖥️ ÉTAT ACTUEL DE LA PAGE
+        INDISPONIBLE - Rafraîchit la page
+
+        refresh_page_representation()
+
     """
     print("[DEBUG] Use tool refresh_page_representation")
 
     # Wait to be sure the email is received
     time.sleep(5)
 
-    return Command(update={"messages": [ToolMessage(content="Page en cours de rafraichissement ... Voir la représentation de la page actuelle", tool_call_id=tool_call_id)]})
+    return Command(update={"messages": [ToolMessage(content="Page rafraîchit ! Voir la représentation de la page actuelle dans le prompt système au début de la conversation\n\nATTENTION : ne rappelle surtout pas cet outil !", tool_call_id=tool_call_id)]})
