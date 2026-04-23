@@ -25,7 +25,7 @@ def create_email_agent(system_prompt, page, model_name: str):
 
     # Allow only one use of this tool so the agent doesn't run in an infinite loop. If used another time, end ReAct agent invocation
     refresh_page_limit = ToolCallLimitMiddleware(
-        run_limit=1,                                # max 1 call
+        run_limit=2,                                # max 1 call
         tool_name="refresh_page_representation",    # only for this tool
         exit_behavior="end"                         # bloc the tool use instead of crashing
     )
