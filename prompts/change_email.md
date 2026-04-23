@@ -7,6 +7,7 @@ Une représentation de la page en Markdown t'est fournie dans ce message.
 **Instructions :**
 - Remplis le champ email actuel avec identifier="EMAIL" (si présent)
 - Remplis le champ nouvel email avec identifier="NEW_EMAIL"
+- Si le champs pour changer l'email est désactivé, n'utilise pas d'outil et explique ce qui bloque.
 - Si un champs de confirmation d'email est requis, rempplis-le avec identifier="NEW_EMAIL"
 - Si un champ de confirmation de mot de passe est requis, remplis-le avec identifier="PASSWORD"
 - Soumets le formulaire

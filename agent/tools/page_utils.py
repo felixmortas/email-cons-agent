@@ -20,6 +20,9 @@ async def wait_for_dom_stable(page: Page, timeout_ms: int = 3000) -> None:
     """
     await page.evaluate("""
         (timeout) => new Promise((resolve) => {
+            const target = document.body || document.documentElement;
+            if (!target) { resolve(); return; }
+                        
             let timer;
             const observer = new MutationObserver(() => {
                 clearTimeout(timer);
