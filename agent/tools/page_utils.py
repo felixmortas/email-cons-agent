@@ -31,7 +31,7 @@ async def wait_for_dom_stable(page: Page, timeout_ms: int = 3000) -> None:
                     resolve();
                 }, 300); // 300ms without mutations = stable
             });
-            observer.observe(document.body, {
+            observer.observe(target, {
                 childList: true, subtree: true, attributes: true
             });
             // Fallback if nothing mutates within the timeout
