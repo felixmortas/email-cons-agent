@@ -6,7 +6,7 @@ Une représentation de la page en Markdown t'est fournie dans ce message.
 
 **Instructions :**
 - Ne clique JAMAIS sur le bouton "Mot de passe oublié"
-- Remplis le champ identifiant (email ou nom d'utilisateur) avec identifier="EMAIL"
+- Si le champs email/identifiant est disponible, remplis le directement avec identifier="EMAIL".
 - Tu peux avoir besoin de cliquer sur un bouton "Suivant" ou "Connexion" avant de voir le champs "Password"
 - Remplis le champ mot de passe avec identifier="PASSWORD"
 - Clique sur le bouton de soumission du formulaire
@@ -15,7 +15,7 @@ Une représentation de la page en Markdown t'est fournie dans ce message.
 
 **CRITIQUE** : 
 - Attention ! Tu ne dois pas valider l'étape juste après un clic si la représentation de la page actuelle ne donne pas d'indice de connexion réussie.
-- Si tu appelles plusieurs fois le même outil dans le même message, ne lui passer pas le même index en paramètre.
+- Si tu appelles plusieurs fois le même outil dans le même message, ne lui passe pas le même index en paramètre.
 
 ## ✅ CONDITION DE SUCCÈS
 Tu es connecté si l'un de ces indices est présent sur la page :

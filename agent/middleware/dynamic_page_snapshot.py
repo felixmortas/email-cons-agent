@@ -44,8 +44,9 @@ def make_dynamic_page_snapshot(page):
         if SNAPSHOT_PLACEHOLDER in system_prompt:
             system_prompt = system_prompt.replace(SNAPSHOT_PLACEHOLDER, snapshot)
 
-        if USERNAMES_PLACEHOLDER in system_prompt:
-            return system_prompt.replace(USERNAMES_PLACEHOLDER, ", ".join(request.runtime.context['user_names']))
+            if USERNAMES_PLACEHOLDER in system_prompt:
+                return system_prompt.replace(USERNAMES_PLACEHOLDER, ", ".join(request.runtime.context['user_names']))
+            return system_prompt
         
         return f"{system_prompt}\n\n## 🖥️ ÉTAT ACTUEL DE LA PAGE\n{snapshot}"
     return _refresh_snapshot

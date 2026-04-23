@@ -44,7 +44,7 @@ async def refresh_page_representation(
     """
     print("[DEBUG] Use tool refresh_page_representation")
 
-    # Wait to be sure the email is received
+    # Wait to be sure the page is refreshed
     time.sleep(5)
 
-    return Command(update={"messages": [ToolMessage(content="Page rafraîchit ! Voir la représentation de la page actuelle dans le prompt système au début de la conversation\n\nATTENTION : ne rappelle surtout pas cet outil !", tool_call_id=tool_call_id)]})
+    return Command(update={"messages": [ToolMessage(content="Page rafraîchit ! Voir la représentation de la page actuelle dans le prompt système au début de la conversation\n\nATTENTION : ne rappelle surtout pas l'outil `refresh_page_reoresentation` !", tool_call_id=tool_call_id)]})
