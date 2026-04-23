@@ -4,4 +4,4 @@ perso
 .env
 .DS_Store
 data
-.exclusions_prefs.json
+.prefs.json

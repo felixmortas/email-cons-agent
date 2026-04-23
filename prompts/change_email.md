@@ -5,6 +5,7 @@ Ta seule mission est de modifier l'adresse email du compte.
 Une représentation de la page en Markdown t'est fournie dans ce message.
 
 **Instructions :**
+- Si tu n'es pas déjà sur la page, cherche un accès aux paramètres du compte ("Mon compte", "Profil", "Paramètres", "Settings"...) ou bien au profil de l'utilisateur ({user_names})
 - Remplis le champ email actuel avec identifier="EMAIL" (si présent)
 - Remplis le champ nouvel email avec identifier="NEW_EMAIL"
 - Si le champs pour changer l'email est désactivé, n'utilise pas d'outil et explique ce qui bloque.

@@ -5,7 +5,7 @@ import os
 from multiprocessing import Process, Queue
 
 class SiteSelector:
-    def __init__(self, full_data, email_cible, prefs_file=".exclusions_prefs.json"):
+    def __init__(self, full_data, email_cible, prefs_file=".prefs.json"):
         self.full_data = full_data
         self.email_cible = email_cible
         self.prefs_file = prefs_file
@@ -18,17 +18,29 @@ class SiteSelector:
         ]
         
     def _load_prefs(self):
+        """Load existing preferences from file, returning only the index list."""
         if os.path.exists(self.prefs_file):
             try:
                 with open(self.prefs_file, "r") as f:
-                    return json.load(f)
-            except: return []
+                    prefs = json.load(f)
+                    return prefs.get("exclusions", [])
+            except Exception:
+                return []
         return []
 
     def _save_prefs(self, exclusions):
+        """Save the index list to the prefs file, preserving user names if they exist."""
+        existing_prefs = {}
+        if os.path.exists(self.prefs_file):
+            try:
+                with open(self.prefs_file, "r") as f:
+                    existing_prefs = json.load(f)
+            except Exception:
+                pass
+        existing_prefs["exclusions"] = exclusions
         with open(self.prefs_file, "w") as f:
-            json.dump(exclusions, f)
-
+            json.dump(existing_prefs, f)
+            
     def run_ui(self, queue):
         """This method runs in a separate process   ."""
         root = tk.Tk()

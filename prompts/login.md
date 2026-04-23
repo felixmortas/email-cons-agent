@@ -21,7 +21,7 @@ Une représentation de la page en Markdown t'est fournie dans ce message.
 Tu es connecté si l'un de ces indices est présent sur la page :
 - Un message de bienvenue personnalisé (ex : "Bonjour [Nom]")
 - Un bouton ou lien de déconnexion ("Se déconnecter", "Logout"...)
-- Des informations utilisateur ("Mon compte", "Mon profil"...)
+- Des informations utilisateur ("Mon compte", "Mon profil", {user_names})
 - L'absence du formulaire email/mot de passe alors que tu viens de soumettre tes identifiants
 - Absence de demande de validation grâce à un code reçu par email
 

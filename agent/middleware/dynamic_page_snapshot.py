@@ -22,6 +22,7 @@ from langchain.agents.middleware import dynamic_prompt, ModelRequest
 from agent.tools import get_page_representation
 
 SNAPSHOT_PLACEHOLDER = "{snapshot}"
+USERNAMES_PLACEHOLDER = "{user_names}"
 
 def make_dynamic_page_snapshot(page):
     @dynamic_prompt
@@ -41,7 +42,10 @@ def make_dynamic_page_snapshot(page):
 
         # 3. Return the combined string
         if SNAPSHOT_PLACEHOLDER in system_prompt:
-            return system_prompt.replace(SNAPSHOT_PLACEHOLDER, snapshot)
+            system_prompt = system_prompt.replace(SNAPSHOT_PLACEHOLDER, snapshot)
+
+        if USERNAMES_PLACEHOLDER in system_prompt:
+            return system_prompt.replace(USERNAMES_PLACEHOLDER, ", ".join(request.runtime.context['user_names']))
         
         return f"{system_prompt}\n\n## 🖥️ ÉTAT ACTUEL DE LA PAGE\n{snapshot}"
     return _refresh_snapshot

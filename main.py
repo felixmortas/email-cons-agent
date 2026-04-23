@@ -22,6 +22,7 @@ from services.langfuse_engine import langfuse_handler
 from services.playwright_session import playwright_session
 from services.outlook_service import OutlookService
 from services.gui_exclusion import selectionner_sites_gui
+from services.user_names_manager import get_user_names
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -104,6 +105,7 @@ async def _process_site(
     name: str,
     llm_name: str,
     uri: str | None,
+    user_names: list[str],
     headless: bool,
     outlook_service: OutlookService,
     # Callback invoked on success so callers can persist state their own way
@@ -117,7 +119,7 @@ async def _process_site(
     """
     print(f"Processing {name}...")
 
-    context = ContextSchema(website_name=name, outlook_service=outlook_service, llm=llm_name)
+    context = ContextSchema(website_name=name, user_names=user_names, outlook_service=outlook_service, llm=llm_name)
 
     corrected_uri = validate_and_correct_uri(uri)
 
@@ -151,7 +153,7 @@ async def _process_site(
         return success
 
 
-async def run_single(website: str, url: str | None, llm_name: str, headless: bool) -> None:
+async def run_single(website: str, url: str | None, user_names: list[str], llm_name: str, headless: bool) -> None:
     """
     Single-site mode: triggered when --website is passed via CLI.
 
@@ -169,6 +171,7 @@ async def run_single(website: str, url: str | None, llm_name: str, headless: boo
         name=website,
         uri=url,
         llm_name=llm_name,
+        user_names=user_names,
         headless=headless,
         outlook_service=outlook_service,
         on_success=on_success,
@@ -181,6 +184,7 @@ async def run_batch(
     email_cible: str,
     exclusions: list,
     new_email: str,
+    user_names: list[str],
     llm_name: str,
     headless: bool,
 ) -> None:
@@ -216,6 +220,7 @@ async def run_batch(
             name=item.get("name"),
             uri=first_raw_uri,
             llm_name=llm_name,
+            user_names=user_names,
             headless=headless,
             outlook_service=outlook_service,
             on_success=make_on_success(i),
@@ -225,10 +230,13 @@ async def run_batch(
 def main() -> None:
     args = parse_args()
 
+    # Get user names, nicknames or initials to find Profil page
+    user_names = get_user_names()
+
     # ── Single-site mode ────────────────────────────────────────────────────
     if args.website:
         # PASSWORD must already be set in the environment by the caller
-        asyncio.run(run_single(website=args.website, url=args.url, llm_name=args.model, headless=args.headless))
+        asyncio.run(run_single(website=args.website, url=args.url, user_names=user_names, llm_name=args.model, headless=args.headless))
         return
 
     # ── Batch mode (reads credentials from JSON vault) ───────────────────────
@@ -259,7 +267,7 @@ def main() -> None:
     exclusions = selectionner_sites_gui(full_data, email_cible)
 
     # 6. Run the batch
-    asyncio.run(run_batch(full_data, working_file, email_cible, exclusions, new_email, args.model, args.headless))
+    asyncio.run(run_batch(full_data, working_file, email_cible, exclusions, new_email, user_names, args.model, args.headless))
 
 
 if __name__ == "__main__":
