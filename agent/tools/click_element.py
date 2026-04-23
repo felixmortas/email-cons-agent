@@ -91,10 +91,10 @@ async def click_element(
         try:
             await page.wait_for_function(
                 f"document.body.innerHTML.length !== {before}",
-                timeout=2000,
+                timeout=3000,
             )
             await page.wait_for_timeout(300)  # Let the animations finish
-            await wait_for_dom_stable(page, timeout_ms=2000)
+            await wait_for_dom_stable(page, timeout_ms=3000)
             result = f"✅ Clic (dom-mutation) [{index}] {tag} id={el_id} « {text} »"
         except Exception:
             pass  # No mutations detected
