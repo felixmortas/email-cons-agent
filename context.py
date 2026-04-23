@@ -19,5 +19,5 @@ from services.outlook_service import OutlookService
 class ContextSchema:
     website_name: str
     page: Optional[Page] = field(default=None, init=False)
-    outlook_service: Optional[OutlookService] = field(default=None, init=False)
-    llm: str = "mistral-small-latest"
+    outlook_service: OutlookService
+    llm: str

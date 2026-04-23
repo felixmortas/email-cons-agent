@@ -33,19 +33,21 @@ def parse_args() -> argparse.Namespace:
             python main.py
             """,
     )
-    parser.add_argument(
-        "--model",
-        type=str,
-        default="mistral-small-latest",
-        help="Model name (e.g. mistral-large-latest, gemini-3-flash-preview)",
-    )
-    parser.add_argument(
-        "--headless",
-        action=argparse.BooleanOptionalAction,
-        default=True,
-        help="Run browser in headless mode",
-    )
+
+    parser.add_argument("--website", type=str, default=None, help="Nom exact du site à traiter (mode site unique)")
+    parser.add_argument("--url", type=str, default=None, help="URL à utiliser à la place de celle du vault")
+    parser.add_argument("--model", type=str, default="mistral-small-latest", help="Model name (e.g. mistral-large-latest, gemini-3-flash-preview)",)
+    parser.add_argument("--headless", action=argparse.BooleanOptionalAction, default=True, help="Run browser in headless mode",)
+
     return parser.parse_args()
+
+def _build_outlook_service() -> OutlookService:
+    """Instantiate OutlookService from environment variables."""
+    return OutlookService(
+        client_id=os.getenv("OUTLOOK_CLIENT_ID"),
+        client_secret=os.getenv("OUTLOOK_CLIENT_SECRET"),
+        refresh_token=os.getenv("OUTLOOK_REFRESH_TOKEN"),
+    )
 
 def create_working_copy(original_path: str) -> str:
     """Creates a timestamped copy of the file and returns the new path."""
@@ -97,106 +99,171 @@ def validate_and_correct_uri(uri: str) -> str | None:
     return uri
 
 
-async def run(args: argparse.Namespace, full_data: dict, working_file: str, email_cible: str, exclusions: list, new_email: str) -> None:
-    
-    outlook_service = OutlookService(
-        client_id=os.getenv("OUTLOOK_CLIENT_ID"),
-        client_secret=os.getenv("OUTLOOK_CLIENT_SECRET"),
-        refresh_token=os.getenv("OUTLOOK_REFRESH_TOKEN"),
+async def _process_site(
+    *,
+    name: str,
+    llm_name: str,
+    uri: str | None,
+    headless: bool,
+    outlook_service: OutlookService,
+    # Callback invoked on success so callers can persist state their own way
+    on_success,
+) -> bool:
+    """
+    Core processing unit for a single website.
+    Isolated from any JSON/credential concerns.
+
+    Returns True on success, False otherwise.
+    """
+    print(f"Processing {name}...")
+
+    context = ContextSchema(website_name=name, outlook_service=outlook_service, llm=llm_name)
+
+    corrected_uri = validate_and_correct_uri(uri)
+
+    initial_state = {
+        "messages": [],
+        "initial_url": corrected_uri,
+    }
+
+    async with playwright_session(context=context, headless=headless):
+        final_state = await graph.ainvoke(
+            input=initial_state,
+            config={
+                "callbacks": [langfuse_handler],
+                "metadata": {"langfuse_tags": [name]},
+            },
+            context=context,
+        )
+
+        messages = final_state["messages"]
+        try:
+            result = messages[-1].content
+        except IndexError:
+            result = "❌ Echec"
+
+        success = result.startswith("✅ Email changé avec succès")
+
+        if success:
+            print(f"✅ Succès pour {name}")
+            await on_success()
+
+        return success
+
+
+async def run_single(website: str, url: str | None, llm_name: str, headless: bool) -> None:
+    """
+    Single-site mode: triggered when --website is passed via CLI.
+
+    Credentials (PASSWORD) are read exclusively from the environment.
+    The JSON credentials file is never touched here.
+    """
+    # Parse remaining args (model, headless…) without re-declaring them
+    outlook_service = _build_outlook_service()
+
+    # No-op on_success: caller is responsible for any persistence
+    async def on_success():
+        pass
+
+    await _process_site(
+        name=website,
+        uri=url,
+        llm_name=llm_name,
+        headless=headless,
+        outlook_service=outlook_service,
+        on_success=on_success,
     )
 
-    # Process
-    for i, item in enumerate(full_data.get('items', [])):
-        login = item.get('login', {})
 
-        # Filter: Only the target email and items that are not excluded are processed
-        if login.get('username') != email_cible or i in exclusions:
+async def run_batch(
+    full_data: dict,
+    working_file: str,
+    email_cible: str,
+    exclusions: list,
+    new_email: str,
+    llm_name: str,
+    headless: bool,
+) -> None:
+    """
+    Batch mode: iterates over all matching items from the JSON vault.
+    Persists updates to working_file after each successful processing.
+    """
+    outlook_service = _build_outlook_service()
+
+    for i, item in enumerate(full_data.get("items", [])):
+        login = item.get("login", {})
+
+        # Filter: only the target email, skip excluded indices
+        if login.get("username") != email_cible or i in exclusions:
             continue
 
-        # We update the OS environment so that the agent's tools can access it
-        os.environ["PASSWORD"] = login.get('password', '')
-            
-        print(f"Processing of {item.get('name')}...")
-        context=ContextSchema(website_name=item.get('name'), llm=args.model)
-        context.outlook_service = outlook_service
+        # Resolve password
+        os.environ["PASSWORD"] = login.get("password")
 
-        uris = login.get('uris', [])
-        first_raw_uri = uris[0].get('uri') if uris else None
-        first_uri = validate_and_correct_uri(first_raw_uri)
+        uris = login.get("uris", [])
+        first_raw_uri = uris[0].get("uri") if uris else None
 
-        initial_state = {
-            "messages": [],
-            "initial_url": first_uri,
-        }
-
-        async with playwright_session(context=context, headless=args.headless):
-
-            final_state = await graph.ainvoke(
-                input=initial_state,
-                config={
-                    "callbacks": [langfuse_handler],
-                    "metadata": {"langfuse_tags": [item.get('name')]},
-                },
-                context=context
-            )
-
-            messages = final_state["messages"]
-            try:
-                result = messages[-1].content
-            except IndexError:
-                result = "❌ Echec"
-
-            success = result.startswith('✅ Email changé avec succès')
-            
-            # 7. Update vault if success
-            if success:
-                print(f"✅ Succès pour {item.get('name')}")
-                
-                # UPDATE JSON
-                # We modify the full_data object directly
-                full_data['items'][i]['login']['username'] = new_email
-                
-                # Save immediately to the copy to avoid losing data
+        # Closure captures i/item/full_data for deferred write-on-success
+        def make_on_success(idx: int):
+            async def on_success():
+                # Update email in-place and persist immediately
+                full_data["items"][idx]["login"]["username"] = new_email
                 save_full_json(working_file, full_data)
                 print(f"Fichier {working_file} mis à jour.")
+            return on_success
+
+        await _process_site(
+            name=item.get("name"),
+            uri=first_raw_uri,
+            llm_name=llm_name,
+            headless=headless,
+            outlook_service=outlook_service,
+            on_success=make_on_success(i),
+        )
 
 
 def main() -> None:
     args = parse_args()
+
+    # ── Single-site mode ────────────────────────────────────────────────────
+    if args.website:
+        # PASSWORD must already be set in the environment by the caller
+        asyncio.run(run_single(website=args.website, url=args.url, llm_name=args.model, headless=args.headless))
+        return
+
+    # ── Batch mode (reads credentials from JSON vault) ───────────────────────
     original_file = "data/bitwarden_export_20260421213304.json"
-    
-    # 1. Creating a working copy
+
+    # 1. Create a working copy to avoid mutating the original
     working_file = create_working_copy(original_file)
     print(f"Fichier de travail créé : {working_file}")
 
-    # 2. Loading data from the copy
+    # 2. Load vault data from the copy
     full_data = load_full_json(working_file)
-    
-    # 3. Reading the email to change
+
+    # 3. Resolve target email (env var or interactive prompt)
     if os.getenv("EMAIL") is None:
         email_cible = input("Entrez l'adresse email à modifier : ")
         os.environ["EMAIL"] = email_cible
     else:
         email_cible = os.environ["EMAIL"]
-    
-    # 4. Reading the new email
+
+    # 4. Resolve new email
     if os.getenv("NEW_EMAIL") is None:
         new_email = input("Entrez la nouvelle adresse email : ")
         os.environ["NEW_EMAIL"] = new_email
     else:
         new_email = os.environ["NEW_EMAIL"]
 
-    # 5. Display for selection (Exclusions)
+    # 5. Let user exclude specific sites via GUI
     exclusions = selectionner_sites_gui(full_data, email_cible)
 
-
-
-    # 6. Start of treatment
-    asyncio.run(run(args, full_data, working_file, email_cible, exclusions, new_email))
+    # 6. Run the batch
+    asyncio.run(run_batch(full_data, working_file, email_cible, exclusions, new_email, args.model, args.headless))
 
 
 if __name__ == "__main__":
-    # # Very important for macOS with multiprocessing for GUI
+    # Required on macOS when using multiprocessing with a GUI
     import multiprocessing
     multiprocessing.freeze_support()
 
