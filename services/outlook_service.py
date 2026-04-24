@@ -116,8 +116,7 @@ class OutlookService:
         """
         Aggressively strips down HTML, retaining only:
           - Visible text (excluding scripts, styles, and comments)
-          - URLs (href, src)
-          - Image descriptions (alt)
+          - URLs inlined next to their anchor text as [text](url)
         """
         # 1. Removes HTML comments <!-- ... -->
         html = re.sub(r"<!--.*?-->", " ", html, flags=re.DOTALL)
@@ -125,11 +124,27 @@ class OutlookService:
         # 2. Removes entire invisible blocks (tag and content)
         html = re.sub(r"<(script|style|head|noscript|svg|template)[^>]*>.*?</\1>", " ", html, flags=re.DOTALL | re.IGNORECASE)
 
-        # 3. Extract href="..." and src="..." → keeps only HTTP(S) URLs
-        urls = re.findall(r'(?:href|src)=["\'](\s*https?://[^"\'>\s]+)["\']', html, flags=re.IGNORECASE)
+        # 3. Replace <a href="url">text</a> with [text](url) BEFORE stripping tags.
+        #    The href value may be split across lines (quoted-printable soft breaks
+        #    introduced =\n sequences), so we normalise those first.
+        html = re.sub(r"=\r?\n", "", html)  # collapse QP soft line breaks
  
-        # 4. Excerpt alt="..." → image descriptions
-        alts = re.findall(r'alt=["\']([^"\']{2,})["\']', html, flags=re.IGNORECASE)
+        def replace_anchor(m: re.Match) -> str:
+            """Convert an <a> tag and its inner content to Markdown link syntax."""
+            url = m.group(1).strip()
+            inner_html = m.group(2)
+            # Strip any nested tags inside the anchor to get plain text
+            inner_text = re.sub(r"<[^>]+>", "", inner_html).strip()
+            if inner_text and url:
+                return f"[{inner_text}]({url})"
+            return inner_text or url
+
+        html = re.sub(
+            r'<a[^>]+href=["\'](\s*https?://[^"\'>\s]+)["\'][^>]*>(.*?)</a>',
+            replace_anchor,
+            html,
+            flags=re.DOTALL | re.IGNORECASE,
+        )
  
         # 5. Removes all remaining tags
         text = re.sub(r"<[^>]+>", " ", html)
@@ -151,13 +166,6 @@ class OutlookService:
         text = re.sub(r"\n{3,}", "\n\n", text)
         lines = [line.strip() for line in text.splitlines()]
         text = "\n".join(line for line in lines if line)
- 
-        # 8. Put the final result together
-        parts = [text]
-        # if urls:
-        #     parts.append("\n[URLs]\n" + "\n".join(dict.fromkeys(u.strip() for u in urls)))  # dédoublonné, ordre conservé
-        # if alts:
-        #     parts.append("\n[Images]\n" + "\n".join(dict.fromkeys(a.strip() for a in alts)))
- 
-        return "\n".join(parts)
+  
+        return text
  

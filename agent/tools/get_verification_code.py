@@ -38,7 +38,7 @@ async def get_verification_code(
     print("Finished waiting. Use logique of the tool get_verification_code")
 
     # ── 1. Pull required values from the agent context ────────────────────────
-    outlook: OutlookService | None = runtime.context["outlook_service"]
+    outlook: OutlookService | None = runtime.context["old_outlook_service"]
     llm_name: str = runtime.context["llm_name"]
     website_name: str = runtime.context["website_name"]
 

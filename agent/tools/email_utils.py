@@ -8,7 +8,7 @@ These functions are framework-agnostic and can be tested independently.
 from langchain.chat_models import init_chat_model
 from langchain.messages import HumanMessage
 
-from models.llm import EmailSelection, VerificationCode
+from models.llm import EmailSelection, VerificationCode, VerificationURL
 
 
 def select_verification_email(
@@ -35,7 +35,7 @@ def select_verification_email(
 
     prompt = (
         f"Given the website name '{website_name}', pick the most likely official email "
-        f"of them for a verification code from this list: {emails_list}.\n"
+        f"of them for a verification code or email from this list: {emails_list}.\n"
         "Return the email ID in a JSON format without any other text or explanation.\n\n"
         "Example output:\n"
         '{"id": "AzKfsMHsdfgmfsDKGgfsKdf"}\n'
@@ -79,6 +79,42 @@ def extract_verification_code(
         "Example output:\n"
         '{"code": "123654"}\n'
         '{"code": "not-found"}\n\n'
+        f"# EMAIL CONTENT\n\n{email_content}"
+    )
+
+    response = model.invoke([HumanMessage(content=prompt)])
+
+    if response.code == "not-found":
+        raise ValueError("No verification code found in the email content.")
+
+    return response.code
+
+def extract_verification_url(    
+    llm_name: str,
+    email_content: str,
+) -> str:
+    """
+    Extracts an email verification URL from raw email content.
+
+    Args:
+        llm_name:      Name of the LLM model to use (passed to init_chat_model).
+        email_content: Raw text/HTML content of the email.
+
+    Returns:
+        The verification email URL as a string.
+
+    Raises:
+        ValueError: If no verification URL is found in the email (URL == "not-found").
+        Exception:  Any LLM invocation error is propagated to the caller.
+    """
+    model = init_chat_model(llm_name).with_structured_output(VerificationURL)
+
+    prompt = (
+        "Find the email verification URL in this email.\n"
+        "Return the verification URL in a JSON format without any other text or explanation.\n\n"
+        "Example output:\n"
+        '{"url": "https://www.mysite.com/verifyURL?code=8F2R8AAD9R28"}\n'
+        '{"url": "not-found"}\n\n'
         f"# EMAIL CONTENT\n\n{email_content}"
     )
 

@@ -42,12 +42,12 @@ def parse_args() -> argparse.Namespace:
 
     return parser.parse_args()
 
-def _build_outlook_service() -> OutlookService:
+def _build_outlook_service(mailbox: str) -> OutlookService:
     """Instantiate OutlookService from environment variables."""
     return OutlookService(
         client_id=os.getenv("OUTLOOK_CLIENT_ID"),
         client_secret=os.getenv("OUTLOOK_CLIENT_SECRET"),
-        refresh_token=os.getenv("OUTLOOK_REFRESH_TOKEN"),
+        refresh_token=os.getenv(f"OUTLOOK_REFRESH_TOKEN_{mailbox.upper()}"),
     )
 
 def create_working_copy(original_path: str) -> str:
@@ -107,7 +107,8 @@ async def _process_site(
     uri: str | None,
     user_names: list[str],
     headless: bool,
-    outlook_service: OutlookService,
+    old_outlook_service: OutlookService,
+    new_outlook_service: OutlookService,
     # Callback invoked on success so callers can persist state their own way
     on_success,
 ) -> bool:
@@ -119,7 +120,7 @@ async def _process_site(
     """
     print(f"Processing {name}...")
 
-    context = ContextSchema(website_name=name, user_names=user_names, outlook_service=outlook_service, llm=llm_name)
+    context = ContextSchema(website_name=name, user_names=user_names, old_outlook_service=old_outlook_service, new_outlook_service=new_outlook_service, llm=llm_name)
 
     corrected_uri = validate_and_correct_uri(uri)
 
@@ -144,7 +145,7 @@ async def _process_site(
         except IndexError:
             result = "❌ Echec"
 
-        success = result.startswith("✅ Email changé avec succès")
+        success = result.startswith("✅ Email changé ")
 
         if success:
             print(f"✅ Succès pour {name}")
@@ -161,7 +162,8 @@ async def run_single(website: str, url: str | None, user_names: list[str], llm_n
     The JSON credentials file is never touched here.
     """
     # Parse remaining args (model, headless…) without re-declaring them
-    outlook_service = _build_outlook_service()
+    old_outlook_service = _build_outlook_service("OLD")
+    new_outlook_service = _build_outlook_service("NEW")
 
     # No-op on_success: caller is responsible for any persistence
     async def on_success():
@@ -173,7 +175,8 @@ async def run_single(website: str, url: str | None, user_names: list[str], llm_n
         llm_name=llm_name,
         user_names=user_names,
         headless=headless,
-        outlook_service=outlook_service,
+        old_outlook_service=old_outlook_service,
+        new_outlook_service=new_outlook_service,
         on_success=on_success,
     )
 
@@ -192,7 +195,8 @@ async def run_batch(
     Batch mode: iterates over all matching items from the JSON vault.
     Persists updates to working_file after each successful processing.
     """
-    outlook_service = _build_outlook_service()
+    old_outlook_service = _build_outlook_service("OLD")
+    new_outlook_service = _build_outlook_service("NEW")
 
     for i, item in enumerate(full_data.get("items", [])):
         login = item.get("login", {})
@@ -222,7 +226,8 @@ async def run_batch(
             llm_name=llm_name,
             user_names=user_names,
             headless=headless,
-            outlook_service=outlook_service,
+            old_outlook_service=old_outlook_service,
+            new_outlook_service=new_outlook_service,
             on_success=make_on_success(i),
         )
 

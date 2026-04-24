@@ -21,3 +21,10 @@ class VerificationCode(BaseModel):
     code: str = Field(
         description="The verification code parsed in the given email"
     )
+
+class VerificationURL(BaseModel):
+    """Verification URL extracted from the email"""
+
+    url: str = Field(
+        description="The verification URL parsed in the given email"
+    )

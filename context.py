@@ -20,5 +20,6 @@ class ContextSchema:
     website_name: str
     user_names: list[str | None]
     page: Optional[Page] = field(default=None, init=False)
-    outlook_service: OutlookService
+    old_outlook_service: OutlookService
+    new_outlook_service: OutlookService
     llm: str

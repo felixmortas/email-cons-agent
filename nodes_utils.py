@@ -76,7 +76,14 @@ async def create_and_invoke_agent_with_retry(state, runtime, function_name) -> s
     system_prompt = _load_prompt(f"{function_name}.md")
     page = runtime.context.page
     llm_name = runtime.context.llm
-    context = Context(page=page, website_name=runtime.context.website_name, user_names=runtime.context.user_names, outlook_service=runtime.context.outlook_service, llm_name=llm_name)
+    context = Context(
+        page=page, 
+        website_name=runtime.context.website_name, 
+        user_names=runtime.context.user_names, 
+        old_outlook_service=runtime.context.old_outlook_service, 
+        new_outlook_service=runtime.context.new_outlook_service, 
+        llm_name=llm_name
+    )
 
     content = await _invoke_with_retry(
         agent_factory=lambda: create_email_agent(system_prompt, page, llm_name),

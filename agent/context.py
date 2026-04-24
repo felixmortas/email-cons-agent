@@ -5,5 +5,6 @@ class Context(TypedDict):
     page: object
     website_name: str
     user_names: list[str | None]
-    outlook_service: object
+    old_outlook_service: object
+    new_outlook_service: object
     llm_name: str
