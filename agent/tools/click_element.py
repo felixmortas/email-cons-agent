@@ -9,7 +9,7 @@ from langchain.messages import ToolMessage
 from langgraph.types import Command
 from langchain.tools import InjectedToolCallId, tool, ToolRuntime
 from agent.context import Context
-from .page_utils import locate_by_agent_index, wait_for_dom_stable
+from agent.tools.utils.page_utils import locate_by_agent_index, wait_for_dom_stable
 
 
 @tool

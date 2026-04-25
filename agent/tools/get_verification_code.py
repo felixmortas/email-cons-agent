@@ -14,7 +14,7 @@ from langgraph.types import Command
 from langchain.tools import InjectedToolCallId, tool, ToolRuntime
 
 from agent.context import Context
-from agent.tools.email_utils import extract_verification_code, select_verification_email
+from agent.tools.utils.email_utils import extract_verification_code, select_verification_email
 from services.outlook_service import OutlookService
 
 @tool

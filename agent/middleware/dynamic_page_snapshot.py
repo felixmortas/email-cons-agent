@@ -18,7 +18,7 @@ Usage in create_email_agent:
 """
 from langchain.agents.middleware import dynamic_prompt, ModelRequest
 
-from agent.tools.page_utils import get_page_representation, look_for_any_captcha
+from agent.tools.utils.page_utils import get_page_representation, look_for_any_captcha
 
 SNAPSHOT_PLACEHOLDER = "{snapshot}"
 USERNAMES_PLACEHOLDER = "{user_names}"

@@ -26,7 +26,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from playwright.async_api import Page
 
-from agent.tools.page_utils import look_for_any_captcha
+from agent.tools.utils.page_utils import look_for_any_captcha
 
 
 # ---------------------------------------------------------------------------
@@ -82,7 +82,7 @@ class TestLookForAnyCaptchaUnit:
 
         assert "⚠️ ATTENTION" in result
         assert "CAPTCHA A ÉTÉ DÉTECTÉ" in result
-        assert "GraphInterrupt" in result
+        assert "interrupt_graph" in result
         # The loop should have stopped after the first hit
         page.query_selector.assert_awaited_once()
 
@@ -204,7 +204,7 @@ class TestLookForAnyCaptchaUnit:
         """
         page = _make_page(element_visible=True)
         result = await look_for_any_captcha(page)
-        assert "GraphInterrupt" in result
+        assert "interrupt_graph" in result
 
     @pytest.mark.asyncio
     async def test_no_captcha_returns_exact_empty_string(self):
@@ -252,7 +252,7 @@ class TestLookForAnyCaptchaIntegration:
 
         assert "⚠️ ATTENTION" in result
         assert "CAPTCHA A ÉTÉ DÉTECTÉ" in result
-        assert "GraphInterrupt" in result
+        assert "interrupt_graph" in result
 
     @pytest.mark.asyncio(loop_scope="session")
     async def test_clean_page_not_detected(self, page: Page):
