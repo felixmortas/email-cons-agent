@@ -7,6 +7,7 @@ from langchain_core.messages import HumanMessage, ToolMessage
 from langgraph.errors import GraphInterrupt
 from agent.agent import create_email_agent
 from agent.context import Context
+from agent.tools.stop_execution import StopExecutionError
 from state import AgentInputState
 
 # ── Configuration ────────────────────────────────────────────────────────────
@@ -52,7 +53,14 @@ async def _invoke_with_retry(
             await page.goto(fallback_url, wait_until="load")
         agent = agent_factory()
         inputs = {"messages": [HumanMessage("A partir de l'historique de la conversation et de la représentation de la page actuelle, analyse la situation. Créer un plan étape par étpae pour arriver à remplir ta mission et améliore le à chaque itération. Ensuite, appelle les outils dont tu as besoin")]}
-        result = await agent.ainvoke(inputs, context=context)
+        try:
+            result = await agent.ainvoke(inputs, context=context)
+        except StopExecutionError as e:
+            # Tool explicitly requested a halt — surface it as a GraphInterrupt
+            raise GraphInterrupt(
+                f"[{function_name}] stop_execution called: {e.reason}"
+            )
+        
         messages = result["messages"]
         last_content = messages[-1].content
 

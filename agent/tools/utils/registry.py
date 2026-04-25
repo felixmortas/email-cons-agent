@@ -5,6 +5,7 @@ Centralizes all available LangChain tools and provides a factory function
 to retrieve them for graph initialization.
 """
 
+from ..stop_execution import stop_execution
 from ..verify_new_email import verify_new_email
 from ..click_element import click_element
 from ..fill_text_field import fill_text_field
@@ -20,4 +21,4 @@ def get_tools() -> list:
     Returns:
         list: List of decorated tool callables ready for LangGraph binding.
     """
-    return [click_element, fill_text_field, get_verification_code, verify_new_email, refresh_page_representation, complete_step]
+    return [click_element, fill_text_field, get_verification_code, verify_new_email, refresh_page_representation, complete_step, stop_execution]
