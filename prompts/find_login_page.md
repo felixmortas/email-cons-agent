@@ -42,6 +42,8 @@ Tu es sur la page d'accueil, une page de récupération de mot de passe, une pag
 ---
 
 ## 🖥️ Entrée : État Actuel de la Page
+{captcha_identificator}
+
 ```markdown
 {snapshot}
 ```

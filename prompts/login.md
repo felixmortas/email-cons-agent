@@ -42,6 +42,8 @@ Tu es sur une page contenant un formulaire de connexion.
 ---
 
 ## 🖥️ Entrée : État Actuel de la Page
+{captcha_identificator}
+
 ```md
 {snapshot}
 ```

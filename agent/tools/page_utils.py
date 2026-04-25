@@ -197,3 +197,38 @@ async def locate_by_agent_index(page: Page, index: int):
             "Réfère toi à la représentation actuelle de la page et réessaye."
         )
     return locator.first
+
+async def look_for_any_captcha(page):
+    """
+    Détection déterministe de CAPTCHA.
+    Retourne un avertissement formel si un bloqueur est détecté.
+    """
+    # Liste des sélecteurs et patterns courants
+    captcha_patterns = [
+        "iframe[src*='hcaptcha']",
+        "iframe[src*='recaptcha']",
+        "iframe[data-hcaptcha-widget-id]", # Very specifique to hCaptcha
+        "textarea[name='h-captcha-response']",
+        ".g-recaptcha",
+        "#h-captcha-response",
+        "iframe[title*='captcha']"
+    ]
+    
+    found = False
+    for selector in captcha_patterns:
+        try:
+            # On vérifie si l'élément est présent et visible
+            element = await page.query_selector(selector)
+            if element and await element.is_visible():
+                found = True
+                break
+        except:
+            continue
+
+    if found:
+        return (
+            "\n\n⚠️ ATTENTION : UN CAPTCHA A ÉTÉ DÉTECTÉ SUR LA PAGE.\n"
+            "RÈGLE CRITIQUE : Ne tente pas de résoudre le captcha par toi-même.\n"
+            "Utilise l'outil approprié ou demande une aide humaine (GraphInterrupt)."
+        )
+    return ""

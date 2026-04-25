@@ -16,13 +16,13 @@ Usage in create_email_agent:
         ...
     )
 """
-import asyncio
 from langchain.agents.middleware import dynamic_prompt, ModelRequest
 
-from agent.tools import get_page_representation
+from agent.tools.page_utils import get_page_representation, look_for_any_captcha
 
 SNAPSHOT_PLACEHOLDER = "{snapshot}"
 USERNAMES_PLACEHOLDER = "{user_names}"
+CAPTCHA_IDENTIFICATOR_PLACEHOLDER = "{captcha_identificator}"
 
 def make_dynamic_page_snapshot(page):
     @dynamic_prompt
@@ -40,13 +40,17 @@ def make_dynamic_page_snapshot(page):
         if snapshot=="":
             snapshot = "INDISPONIBLE - Rafraîchit la page"
 
+        captcha_identificator = await look_for_any_captcha(page)
+
         # 3. Return the combined string
         if SNAPSHOT_PLACEHOLDER in system_prompt:
             system_prompt = system_prompt.replace(SNAPSHOT_PLACEHOLDER, snapshot)
 
-            if USERNAMES_PLACEHOLDER in system_prompt:
-                return system_prompt.replace(USERNAMES_PLACEHOLDER, ", ".join(request.runtime.context['user_names']))
-            return system_prompt
+        if USERNAMES_PLACEHOLDER in system_prompt:
+            system_prompt = system_prompt.replace(USERNAMES_PLACEHOLDER, ", ".join(request.runtime.context['user_names']))
+            
+        if CAPTCHA_IDENTIFICATOR_PLACEHOLDER in system_prompt:
+            system_prompt = system_prompt.replace(CAPTCHA_IDENTIFICATOR_PLACEHOLDER, captcha_identificator)
         
-        return f"{system_prompt}\n\n## 🖥️ ÉTAT ACTUEL DE LA PAGE\n{snapshot}"
+        return system_prompt
     return _refresh_snapshot

@@ -33,6 +33,8 @@ Tu es sur une page d'accueil contenant des éléments de navigation (menu, profi
 ---
 
 ## 🖥️ Entrée : État Actuel de la Page
+{captcha_identificator}
+
 ```md
 {snapshot}
 ```

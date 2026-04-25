@@ -39,4 +39,8 @@ Tu es sur une page contenant un formulaire de modification d'email ou une étape
 ---
 
 ## 🖥️ Entrée : État Actuel de la Page
+{captcha_identificator}
+
+```md
 {snapshot}
+```
