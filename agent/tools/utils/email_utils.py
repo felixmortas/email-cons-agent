@@ -1,8 +1,8 @@
 """
-Email Utility Functions
+Email Verification Utilities
 
-Pure business logic extracted from the get_verification_code LangChain tool.
-These functions are framework-agnostic and can be tested independently.
+A collection of functions for identifying verification emails and extracting 
+codes or URLs using LLM-powered structured output.
 """
 
 from langchain.chat_models import init_chat_model

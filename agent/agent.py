@@ -1,3 +1,11 @@
+"""
+Email Agent Factory
+
+Initializes and configures a ReAct agent specialized in email processing using either 
+Google Gemini or Mistral AI models, integrated with browser automation tools and 
+execution safeguards.
+"""
+
 import os
 
 from langchain.agents import create_agent

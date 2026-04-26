@@ -1,7 +1,11 @@
 """
-Utility functions and configuration for the email-change agent.
-Contains prompt loading, retry logic for ReAct agents, and shared constants.
+Email-Change Agent Utilities & Core Logic
+
+This module provides essential orchestration logic and configuration for the email-change 
+automation agent. It handles dynamic prompt loading, state management, and robust 
+error recovery through a ReAct-based retry mechanism.
 """
+
 from pathlib import Path
 from langchain_core.messages import HumanMessage, ToolMessage
 from langgraph.errors import GraphInterrupt

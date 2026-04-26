@@ -1,3 +1,10 @@
+"""
+Outlook Service
+
+A service module for interacting with the Microsoft Graph API to fetch, 
+read, and process emails from Outlook using OAuth2 authentication.
+"""
+
 import re
 import requests
 from datetime import datetime, timezone, timedelta
@@ -35,7 +42,7 @@ class OutlookService:
         }
 
     # ─────────────────────────────────────────────
-    # LECTURE DE MAILS
+    # READ EMAILS
     # ─────────────────────────────────────────────
 
     def get_recent_emails(self, max_results: int = 100, since_minutes: int = 5) -> list[dict]:

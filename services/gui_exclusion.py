@@ -1,3 +1,11 @@
+"""
+Site Selector UI Tool
+
+A Tkinter-based graphical interface for filtering and selecting specific sites from a dataset.
+This module allows users to exclude sites associated with a specific target email and persists
+those preferences to a local JSON file.
+"""
+
 import tkinter as tk
 from tkinter import ttk
 import json

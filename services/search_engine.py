@@ -1,15 +1,10 @@
 """
-Search engine module providing web search functionality through multiple providers.
-This module implements a search engine with pluggable providers for performing web searches.
-It supports both real API-based search (Brave Search API) and mock search for testing purposes.
-Providers:
-    - BraveProvider: Uses the Brave Search API for real web searches
-    - MockProvider: Returns predefined mock results for testing without API consumption
-Environment Variables:
-    BRAVE_API_KEY: API key for Brave Search API authentication
-Attributes:
-    search_engine: Active search provider instance (currently configured as MockProvider)
+Search Engine Module
+
+A module providing web search capabilities via pluggable providers. 
+It supports live search using the Brave Search API and includes a mock provider for testing environments.
 """
+
 import requests
 import os
 

@@ -1,15 +1,11 @@
 """
-Graph nodes for the email-change agent.
-Each ReAct node:
-- Reads `page` from state (set once by init_page)
-- Loads its own system prompt from /prompts/
-- Invokes a fresh ReAct agent (with up to MAX_RETRIES retries on ❌)
-- Returns only a single AIMessage summary — never the full internal chain
+Email-Change Agent Nodes
 
-Token usage stays flat because the internal ReAct chain (tool calls +
-observations) is discarded after each node; only the final one-sentence
-summary is appended to graph state.
+Graph nodes for the email-change agent workflow. 
+Handles URL discovery, page initialization, and ReAct-based navigation 
+and interaction tasks with automated retries and state-efficient summaries.
 """
+
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain.chat_models import init_chat_model
 from langgraph.runtime import Runtime

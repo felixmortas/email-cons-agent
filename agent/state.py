@@ -1,3 +1,10 @@
+"""
+State Definition Module
+
+Defines the global state schema for the LangGraph agent, including message history 
+and custom reducers to handle concurrent state updates.
+"""
+
 from langchain.agents import AgentState
 from langchain_core.messages import BaseMessage
 from langgraph.graph.message import add_messages

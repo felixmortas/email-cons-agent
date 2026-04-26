@@ -1,3 +1,11 @@
+"""
+Model Fallback Middleware Configuration
+
+Configuration of the middleware used to define a hierarchy of fallback models.
+Ensures service continuity by automatically switching to alternative models 
+(Mistral, Gemini) in the event of a failure of the primary model.
+"""
+
 from langchain.agents.middleware.model_fallback import ModelFallbackMiddleware
 
 # Free models:

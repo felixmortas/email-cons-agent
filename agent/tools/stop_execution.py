@@ -1,3 +1,10 @@
+"""
+Stop Execution Tool
+
+LangChain tool designed to immediately halt graph execution by raising a custom exception.
+Use this when a task is impossible to complete or a blocking error is encountered.
+"""
+
 from langchain.tools import tool
 
 class StopExecutionError(Exception):

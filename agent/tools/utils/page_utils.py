@@ -2,8 +2,8 @@
 Page Utilities Module
 
 Provides low-level functions for interacting with the browser DOM,
-including waiting for stability, generating indexed snapshots,
-and locating elements by their stable agent index.
+including waiting for stability, generating indexed snapshots, 
+locating elements by their stable agent index, and identifying a captcha.
 """
 
 from playwright.async_api import Page

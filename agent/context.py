@@ -1,4 +1,12 @@
-from typing import Optional, TypedDict
+"""
+Execution Context
+
+Defines the structure for the agent's runtime environment, maintaining state
+information including the Playwright page object, website details, user 
+identifiers, and service clients throughout the workflow execution.
+"""
+
+from typing import TypedDict
 
 class Context(TypedDict):
     """Execution context containing the Playwright page"""

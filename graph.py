@@ -1,3 +1,11 @@
+"""
+Email Change Workflow Graph
+
+Defines the LangGraph state machine responsible for automating the email update process. 
+This graph handles URL discovery, browser initialization, authentication, and navigation 
+to security settings to perform the final email change.
+"""
+
 from langgraph.graph import StateGraph, START, END
 
 from context import ContextSchema

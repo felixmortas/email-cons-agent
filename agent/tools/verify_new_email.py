@@ -1,3 +1,11 @@
+"""
+Verify New Email Tool
+
+LangChain tool for automating the email verification process via Outlook after an email address change. 
+It handles email polling, content selection via LLM, URL extraction, and provides a human-in-the-loop 
+fallback if automated retrieval fails.
+"""
+
 from typing import Annotated
 import time
 

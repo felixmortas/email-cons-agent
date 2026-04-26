@@ -1,3 +1,11 @@
+"""
+Playwright Session Manager
+
+This module provides an asynchronous context manager for handling Playwright browser 
+sessions with stealth capabilities. It ensures proper initialization and teardown 
+of the Chromium browser instance while integrating with the application's context schema.
+"""
+
 from playwright.async_api import async_playwright
 from playwright_stealth import Stealth
 from contextlib import asynccontextmanager

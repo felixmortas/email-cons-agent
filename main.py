@@ -1,9 +1,32 @@
 """
-ReAct Agent for automated email changing.
+Automated Email Update Agent (Main Entry Point)
+
+This script implements a ReAct-based agent designed to automate the process of 
+changing account email addresses across various web platforms. It leverages 
+Playwright for browser automation, LangGraph for agentic workflow orchestration, 
+and Outlook services for handling verification emails.
+
+The script supports two primary modes of operation:
+1. Single-Site Mode: Targets a specific website provided via command-line 
+   arguments. It relies on environment variables for credentials and does not 
+   modify any local data files.
+2. Batch Mode: Processes a Bitwarden JSON export file. It creates a timestamped 
+   working copy, allows the user to filter sites through a GUI, and 
+   automatically updates the local JSON file upon each successful email change.
+
+Key Features:
+- URI Validation: Sanitizes and corrects URLs, ensuring they are valid web 
+  addresses and filtering out mobile-specific schemes (e.g., intent://).
+- Session Management: Manages Playwright browser contexts with support for 
+  both headless and headed modes.
+- State Persistence: In batch mode, it ensures data integrity by operating on 
+  file copies and providing real-time disk persistence for successful updates.
+- Observability: Integrates with Langfuse for tracing and monitoring the 
+  LLM-driven decision-making process.
 
 Usage:
-    python main.py --url https://www.agrosemens.com --website Agrosemens
-    python main.py --url https://www.agrosemens.com --website Agrosemens --model mistral-large-latest --no-headless
+    python main.py --website "example.com" --url "https://example.com/settings"
+    python main.py --model "gemini-1.5-pro" --no-headless
 """
 
 import argparse

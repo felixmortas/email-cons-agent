@@ -1,4 +1,12 @@
-"""Pydantic schemas for LLM structured outputs."""
+"""
+Pydantic Schemas for LLM Structured Outputs
+
+This module defines the data structures used to enforce type safety and 
+schema validation for the Large Language Model's structured responses. 
+It includes schemas for URL selection, email identification, and 
+verification data extraction.
+"""
+
 from pydantic import BaseModel, Field
 
 class URLSelection(BaseModel):

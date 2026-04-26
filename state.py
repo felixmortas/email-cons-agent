@@ -1,3 +1,10 @@
+"""
+State Management Definitions
+
+Type definitions for the agent's graph state, managing message history 
+and navigation checkpoints.
+"""
+
 from langchain_core.messages import BaseMessage
 from langgraph.graph.message import add_messages
 from typing import Annotated, Optional, TypedDict

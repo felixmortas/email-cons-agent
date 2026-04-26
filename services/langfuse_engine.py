@@ -1,3 +1,10 @@
+"""
+Langfuse Integration Setup
+
+Utility for initializing the Langfuse client and establishing a tracing callback handler 
+to monitor LangChain executions.
+"""
+
 from langfuse import get_client
 from langfuse.langchain import CallbackHandler
  
@@ -12,4 +19,3 @@ else:
      
 # Initialize Langfuse CallbackHandler for Langchain (tracing)
 langfuse_handler = CallbackHandler()
-

@@ -1,3 +1,10 @@
+"""
+User Names Manager
+
+A utility for managing a persistent list of user identifiers (names, initials, or nicknames) 
+stored in a local JSON configuration file.
+"""
+
 import json
 import os
 
