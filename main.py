@@ -25,7 +25,7 @@ Key Features:
   LLM-driven decision-making process.
 
 Usage:
-    python main.py --website "example.com" --url "https://example.com/settings"
+    python main.py --website "example.com" --url "https://example.com/settings" --model "gemini-1.5-pro" --no-headless
     python main.py --model "gemini-1.5-pro" --no-headless
 """
 
@@ -268,7 +268,7 @@ def main() -> None:
         return
 
     # ── Batch mode (reads credentials from JSON vault) ───────────────────────
-    original_file = "data/bitwarden_export_20260421213304.json"
+    original_file = "data/bitwarden_export.json"
 
     # 1. Create a working copy to avoid mutating the original
     working_file = create_working_copy(original_file)
