@@ -1,3 +1,22 @@
+# Executive summary
+
+### 📧 Automated Multi-Platform Account Migration Agent
+
+Updating account emails across dozens of platforms is a manual nightmare. I built an advanced AI agent that automates this entire process—login to navigation to settings, bypassing some security loops, and handling multi-step verifications autonomously.
+
+**The concept:** A Graph-based agentic system invoking ReAct agents that logs into web platforms, locates account settings via intelligent browsing, and manages the dual-email verification dance (old vs. new) using API integrations.
+
+**Technical highlights:**
+
+- **Advanced Agentic Orchestration:** Developed a sophisticated state machine using **LangGraph** to break down complex migrations into deterministic steps completed with LangChain ReAct agent (URL discovery, login, email change, verification).
+- **Intelligent Browser Interaction:** Built a custom "Dynamic Page Snapshot" middleware that translates live DOM states into LLM-readable indexed buttons and text, allowing **Playwright** to navigate modern, JavaScript-heavy web apps with high precision.
+- **Automated Verification Loop:** Integrated **Microsoft Graph API** to programmatically intercept verification codes and confirmation links from Outlook, closing the loop without human intervention.
+- **Resilient & Scalable Architecture:** Implemented a **Model Fallback** mechanism (switching between Gemini and Mistral) and automated retry logic (3 times max) to ensure 24/7 reliability even when hitting API rate limits.
+- **Production-Grade Monitoring:** Integrated **Langfuse** for full-trace observability, allowing for deep debugging of agent reasoning and cost optimization.
+- **Batch Processing Power:** Includes a **Tkinter-based GUI** to filter and process **Bitwarden** vault exports, enabling mass account updates in a single execution.
+
+**Results:** A highly autonomous system capable of handling the "dirty work" of account management, reducing a multiple-hour manual task to a few clicks with 100% data persistence and security.
+
 # 📧 Automated Email Update Agent
 
 An advanced, ReAct-based AI agent designed to automate the tedious process of changing account email addresses across various web platforms. By leveraging **LangGraph** for orchestration, **Playwright** for browser interaction, and **LangChain** for navigation decisions, this agent can navigate complex security settings, handle authentication, and solve verification loops autonomously.
